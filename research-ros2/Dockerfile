@@ -46,6 +46,12 @@ WORKDIR /ros2_crystal
 RUN wget https://raw.githubusercontent.com/ros2/ros2/crystal/ros2.repos
 RUN vcs import src < ros2.repos  
 
+WORKDIR /ros2_crystal/src
+RUN git clone https://github.com/ros2/rosbag2.git
+WORKDIR /ros2_crystal/src/rosbag2
+RUN git checkout crystal
+WORKDIR /ros2_crystal
+
 RUN rosdep init
 RUN rosdep update
 RUN apt update && rosdep install --from-paths src --ignore-src --rosdistro crystal -y --skip-keys "console_bridge fastcdr fastrtps libopensplice67 libopensplice69 rti-connext-dds-5.3.1 urdfdom_headers"
@@ -54,3 +60,5 @@ RUN colcon build --symlink-install
 
 RUN apt install -y xterm
 RUN ls
+
+
