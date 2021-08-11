@@ -1,0 +1,63 @@
+x-vy:
+  anchors:
+    DR: argument:Debug
+    CALIBRATION: definition:asi_ros1_sim
+    CONTROLLERIMAGE: stage:boring_controller
+    SIMIMAGE: stage:asi_ros1_sim
+    RVIZFILES: vydir:asi_ros1_sim
+    BAGFILE: directory:bags
+
+services:
+  core:
+    command: bash -c ". install/setup.bash && echo 'starting core' && roscore"
+    image: $SIMIMAGE
+    networks:
+      rosnetwork:
+        aliases:
+          - rosmaster
+  grid_publisher_node:
+    command: >-
+      bash -c ". install/setup.bash && roslaunch --wait map_grid_publishers local_map_grid_publisher.launch gp_namespace:=${CALIBRATION.namespace} circle_list:='${CALIBRATION.obstacles}'"
+    image: $SIMIMAGE
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  controller:
+    command: >-
+      bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 && python boring_controller.py"
+    image: $CONTROLLERIMAGE
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  simulator_node:
+    command: bash -c ". install/setup.bash && bash /tmp/ros1_ws/src/carsimros/run_carsim.sh ${CALIBRATION.license_server} surface_file:=/calibration.json carsim_namespace:=${CALIBRATION.namespace} stop_time:=${CALIBRATION.stop_time} world_frame_id:=map"
+    image: $SIMIMAGE
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+    volumes:
+      - $CALIBRATION>calibration.json:/calibration.json:ro
+      - ./bags:/bags
+  rviz:
+    command: >-
+      bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 &&
+      (xterm &
+      rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 ${CALIBRATION.namespace}/base_link map 1000 & 
+      rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 odom map 1000 & 
+      rosrun rviz rviz -d /rviz/asi_partners_sim.rviz)"
+    image: $SIMIMAGE
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+      DISPLAY: $DISPLAY
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${RVIZFILES}/rviz:/rviz
+
+networks:
+  rosnetwork:
+version: '3.2'

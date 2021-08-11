@@ -1,0 +1,20 @@
+{
+  "element": [
+    {
+      "name": "amplitude",
+      "type": "float64"
+    },
+    {
+      "name": "wavelength",
+      "type": "float64"
+    },
+    {
+      "name": "phase",
+      "type": "float64"
+    },
+    {
+      "name": "azimuth",
+      "type": "float64"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "element": [
+    {
+      "name": "radial_plateau",
+      "type": "definition:RadialPlateauFeature",
+      "length": "?"
+    },
+    {
+      "name": "linear_plateau",
+      "type": "definition:LinearPlateauFeature",
+      "length": "?"
+    },
+    {
+      "name": "sine",
+      "type": "definition:SineFeature",
+      "length": "?"
+    },
+    {
+      "name": "plane",
+      "type": "definition:PlaneFeature",
+      "length": "?"
+    }
+  ]
+}

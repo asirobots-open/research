@@ -1,0 +1,25 @@
+{
+  "data": {
+    "obstacles": "80,0,5; 100,50,5",
+    "viapoints": "",
+    "namespace": "ius0",
+    "stop_time": 20,
+    "license_server": "surfacesim",
+    "comment": "SET license_server to carsim license server (e.g. 10.10.100.26:27003) or to 'surfacesim'",
+    "x": 0,
+    "y": 0,
+    "heading": 0,
+    "features": {
+      "radial_plateau": [
+      ],
+      "linear_plateau": [
+      ],
+      "sine":[
+      ],
+      "plane":[
+        {"cx":0.1,"cy":0.0,"constant":20}
+      ]
+    }
+  },
+  "definition": "definition:asi_ros1_sim"
+}

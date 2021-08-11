@@ -1,0 +1,24 @@
+{
+  "element": [
+    {
+      "name": "cx",
+      "type": "float64"
+    },
+    {
+      "name": "cy",
+      "type": "float64"
+    },
+    {
+      "name": "width95",
+      "type": "float64"
+    },
+    {
+      "name": "height",
+      "type": "float64"
+    },
+    {
+      "name": "azimuth",
+      "type": "float64"
+    }
+  ]
+}
