@@ -18,7 +18,8 @@ services:
   #   #       - rosmaster
   grid_publisher_node:
     command: >-
-      bash -c ". install/setup.bash && roslaunch --wait map_grid_publishers local_map_grid_publisher.launch gp_namespace:=${CALIBRATION.namespace} circle_list:='${CALIBRATION.obstacles}'"
+      bash -c ". install/setup.bash && 
+      roslaunch --wait map_grid_publishers local_map_grid_publisher.launch gp_namespace:=${CALIBRATION.namespace} circle_list:='${CALIBRATION.obstacles}' republish_period:=0.3"
     image: $SIMIMAGE
     network_mode: host
     # networks:

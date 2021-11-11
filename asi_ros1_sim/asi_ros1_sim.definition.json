@@ -9,6 +9,11 @@
       "type": "string"
     },
     {
+      "name": "segments",
+      "length":"?",
+      "type": "definition:clothoid"
+    },
+    {
       "name": "namespace",
       "type": "float64"
     },
