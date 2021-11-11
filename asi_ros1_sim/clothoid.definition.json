@@ -1,0 +1,32 @@
+{
+  "element": [
+    {
+      "name": "start_x_m",
+      "type": "float64"
+    },
+    {
+      "name": "start_y_m",
+      "type": "float64"
+    },
+    {
+      "name": "start_heading_rad",
+      "type": "float64"
+    },
+    {
+      "name": "start_curvature_inv_m",
+      "type": "float64"
+    },
+    {
+      "name": "delta_curvature_per_length_inv_m2",
+      "type": "float64"
+    },
+    {
+      "name": "length_m",
+      "type": "float64"
+    },
+    {
+      "name": "speed_mps",
+      "type": "float64"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # ASI ros1 simulator
 
-A ROS 1 (kinetic) simulation environment that wraps around the carsim physics engine or a lower fidelity engine "Surface Sim". The purpose is to facilitate collaboration between Autonomou Solutions Inc. and our partners
+A ROS 1 (kinetic) simulation environment that wraps around the carsim physics engine or a lower fidelity engine "Surface Sim". The purpose is to facilitate collaboration between Autonomous Solutions Inc. and our partners
 
 ## Nodes
 
@@ -23,6 +23,10 @@ This is currently a very simple node that publishes a nav_msgs/occupancy_grid me
 ### Rviz Node
 
 For visual monitoring of the vehicle and grid. Also launches an xterm window for e.g. monitoring rostopics
+
+### Boring Planner Node
+
+A plan publisher is included for demonstration purposes only. This planner does not exist in the image but is included with this repo and is automatically built and run with the other nodes when the example simulation is run. The planner publishes a plan specified with either "viapoints" or "segments" in a json calibration file.
 
 ### Boring Controller Node
 
@@ -50,9 +54,33 @@ Control the location and size of circular obstacles. E.g. two circular obstacles
 
 #### Path
 
-The viapoints value will be used to set the desired path, but it doesnt work yet. In the included boring controller a goal point is hard coded
+A "plan" path specified by an asi_msgs/AsiClothoidPath is consumed by the included "Boring Controller". This message is published by an included "Boring Planner" that just creates and publishes a message depending on the values in the calibration file. The plan can either be specified with a string containing a semi-colon delimited list of viapoints where each viapoint has 3 values corresponding to x,y,velocity in that order. For example the following value creates a path consisting of two straight lines. One from x=0,y=0 to x=50,y=0 with a velocity of 5 and the next from x=50,y=0 to x=50,y=50 with a velocity of 4.  
 
-    "viapoints": "",
+    "viapoints": "0,0,5; 50,0,4; 50,50,0",
+
+The plan can also be designated by a list of clothoid segments using the "segments" field. For example the following creates a two segment plan consisting of an arc and straight line. Care must be taken to ensure the segments are continuous to the level desired.
+
+    "segments": [
+        {
+            "start_x_m":0,
+            "start_y_m":0,
+            "start_heading_rad":0,
+            "start_curvature_inv_m":0.01,
+            "delta_curvature_per_length_inv_m2":0,
+            "length_m":314.159,
+            "speed_mps":10
+        },
+        {
+            "start_x_m":0,
+            "start_y_m":200,
+            "start_heading_rad":3.14,
+            "start_curvature_inv_m":0,
+            "delta_curvature_per_length_inv_m2":0,
+            "length_m":100,
+            "speed_mps":10
+        },
+    ],
+
 
 #### Namespace
 
@@ -86,17 +114,19 @@ Set the surface by adding radial and linear plateaus, sine waves, and planes
 
     "features": {
       "radial_plateau": [
+        {"cx":30,"cy":30,"radius":60,"width95":70,"height":0.5},
+        {"cx":-130,"cy":-130,"radius":100,"width95":200,"height":0.8}
       ],
       "linear_plateau": [
+        {"cx":40,"cy":20,"azimuth":0.7,"width95":40,"height":1}
       ],
       "sine":[
+        {"amplitude":2,"wavelength":100,"phase":0,"azimuth":0}
       ],
       "plane":[
-        {"cx":0.1,"cy":0.0,"constant":20}
+        {"cx":0.1,"cy":0,"constant":20}
       ]
     }
-
-More info to come, or you can play around with these, look for the "definition.json" files to see how to add features.
 
 ### Replacing the Controller
 

@@ -1,9 +1,10 @@
 {
   "data": {
-    "obstacles": "80,0,5; 100,50,5",
-    "viapoints": "",
+    "obstacles": "50,0,5; 50,50,5",
+    "viapoints": "0,0,3;50,0,3;50,50,3",
+    "segments": [],
     "namespace": "ius0",
-    "stop_time": 20,
+    "stop_time": 120,
     "license_server": "surfacesim",
     "comment": "SET license_server to carsim license server (e.g. 10.10.100.26:27003) or to 'surfacesim'",
     "x": 0,
