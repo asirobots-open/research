@@ -26,7 +26,7 @@ services:
     # networks:
     #   rosnetwork:
     environment:
-      ROS_MASTER_URI: http://arsim:11311
+      ROS_MASTER_URI: http://localhost:11311
   planner:
     command: >-
       bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 && python boring_planner.py /calibration.json"
@@ -35,7 +35,7 @@ services:
     # networks:
     #   rosnetwork:
     environment:
-      ROS_MASTER_URI: http://arsim:11311
+      ROS_MASTER_URI: http://localhost:11311
     volumes:
       - read_only: true
         source: $CALIBRATION>calibration.json
@@ -49,7 +49,7 @@ services:
     # networks:
     #   rosnetwork:
     environment:
-      ROS_MASTER_URI: http://arsim:11311
+      ROS_MASTER_URI: http://localhost:11311
   simulator_node:
     command: bash -c ". install/setup.bash && bash /tmp/ros1_ws/src/carsimros/run_carsim.sh ${CALIBRATION.license_server} surface_file:=/calibration.json carsim_namespace:=${CALIBRATION.namespace} stop_time:=${CALIBRATION.stop_time} world_frame_id:=map"
     image: $SIMIMAGE
@@ -57,7 +57,7 @@ services:
     # networks:
     #   rosnetwork:
     environment:
-      ROS_MASTER_URI: http://arsim:11311
+      ROS_MASTER_URI: http://localhost:11311
     volumes:
       - $CALIBRATION>calibration.json:/calibration.json:ro
       - ./bags:/bags
