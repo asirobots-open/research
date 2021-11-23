@@ -1,0 +1,37 @@
+<launch>
+<include file="$(find autorally_core)/launch/hardware.machine" />
+    <node name="MAP" pkg="control" type="polylines_asi.py" output="screen" machine="autorally-master">
+    </node>
+    <arg name="speed" default="7.0" />
+    <arg name="load_k" default="0" />
+    <node name="CSSMPC" pkg="control" type="cs_controller_asi_convex.py" output="screen">
+<!--        <param name="N" value="20" />-->
+<!--        <param name="speed" value="$(arg speed)" />-->
+<!--        <param name="steer_min" value="-1.0" />-->
+<!--        <param name="steer_max" value="1.0" />-->
+<!--        <param name="throttle_min" value="-0.5" />-->
+<!--        <param name="throttle_max" value="1.0" />-->
+<!--        <param name="steer_rate_min" value="-0.4" />-->
+<!--        <param name="steer_rate_max" value="0.4" />-->
+<!--        <param name="throttle_rate_min" value="-0.1" />-->
+<!--        <param name="throttle_rate_max" value="0.1" />-->
+<!--        <param name="prob_lvl" value="0.8" />-->
+<!--        <param name="load_k" value="$(arg load_k)" />-->
+<!--        <param name="track_w" value="2.0" />-->
+
+<!--        <param name="Q_vx" value="0.0" />-->
+<!--        <param name="Q_vy" value="0.0" />-->
+<!--        <param name="Q_psidot" value="0.0" />-->
+<!--        <param name="Q_psi" value="0.0" />-->
+<!--        <param name="Q_ey" value="20.0" />-->
+<!--        <param name="Q_s" value="0.0" />-->
+<!--        <param name="QN_vx" value="30.0" />-->
+<!--        <param name="QN_vy" value="1000.0" />-->
+<!--        <param name="QN_psidot" value="0.0" />-->
+<!--        <param name="QN_epsi" value="1000.0" />-->
+<!--        <param name="QN_ey" value="2000.0" />-->
+<!--        <param name="QN_s" value="0.0" />-->
+<!--        <param name="R_delta" value="20.0" />-->
+<!--        <param name="R_T" value="2.0" />-->
+    </node>
+</launch>

@@ -1,0 +1,21 @@
+<package>
+  <name>asi_msgs</name>
+  <version>0.1.1</version>
+  <description>All custom messages for packages in the autorally_private metapackage</description>
+  <maintainer email="bgoldfain3@gatech.edu">Brian Goldfain</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/auto_rally</url>
+
+  <author>Brian Goldfain</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>genmsg</build_depend>
+  <build_depend>std_msgs</build_depend>
+
+  <run_depend>genmsg</run_depend>
+  <run_depend>std_msgs</run_depend>
+
+</package>
