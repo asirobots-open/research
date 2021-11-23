@@ -2,7 +2,8 @@ x-vy:
   anchors:
     DR: argument:Debug
     CALIBRATION: definition:asi_ros1_sim
-    CONTROLLERIMAGE: stage:boring_controller
+    CONTROLLERIMAGE: stage:controller
+    PLANNERIMAGE: stage:boring_controller
     SIMIMAGE: stage:asi_ros1_sim
     RVIZFILES: vydir:asi_ros1_sim
     BAGFILE: directory:bags
@@ -26,15 +27,29 @@ services:
     #   rosnetwork:
     environment:
       ROS_MASTER_URI: http://arsim:11311
-  # controller:
-  #   command: >-
-  #     bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 && python boring_controller.py"
-  #   image: $CONTROLLERIMAGE
-  #   network_mode: host
-  #   # networks:
-  #   #   rosnetwork:
-  #   environment:
-  #     ROS_MASTER_URI: http://arsim:11311
+  planner:
+    command: >-
+      bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 && python boring_planner.py /calibration.json"
+    image: $PLANNERIMAGE
+    network_mode: host
+    # networks:
+    #   rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://arsim:11311
+    volumes:
+      - read_only: true
+        source: $CALIBRATION>calibration.json
+        target: /calibration.json
+        type: bind
+  controller:
+    command: >-
+      bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 && source devel/setup.bash && python3.6 polylines_asi.py & source devel/setup.bash && python3.6 cs_controller_asi_convex.py"
+    image: $CONTROLLERIMAGE
+    network_mode: host
+    # networks:
+    #   rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://arsim:11311
   simulator_node:
     command: bash -c ". install/setup.bash && bash /tmp/ros1_ws/src/carsimros/run_carsim.sh ${CALIBRATION.license_server} surface_file:=/calibration.json carsim_namespace:=${CALIBRATION.namespace} stop_time:=${CALIBRATION.stop_time} world_frame_id:=map"
     image: $SIMIMAGE
