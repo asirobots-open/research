@@ -3,3 +3,6 @@ jobs/
 
 # IDE files
 .idea/
+
+# python files
+*.pyc
