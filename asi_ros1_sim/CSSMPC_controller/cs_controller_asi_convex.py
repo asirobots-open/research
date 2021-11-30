@@ -40,7 +40,7 @@ class CS_SMPC:
         self.n = 6
         self.m = 2
         self.l = 6
-        self.N = 10
+        self.N = 20
         self.dt_linearization = 0.10
         self.dt_solve = 0.10
 
@@ -48,8 +48,8 @@ class CS_SMPC:
         self.x_target = np.tile(np.array([self.target_speed, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N - 1, 1))
         self.x_target = np.vstack((self.x_target, np.array([2, 0, 0, 0, 0, 0]).reshape((-1, 1))))
         self.mu_N = 10000 * np.array([5., 2., 4., 4., 4., 300.]).reshape((-1, 1))
-        self.v_range = np.array([[-1.0, 1.0], [-0.5, 1.0]])
-        self.slew_rate = np.array([[-0.1, 0.1], [-0.1, 0.1]])
+        self.v_range = np.array([[-1.0, 1.0], [-0.0, 1.0]])
+        self.slew_rate = np.array([[-0.05, 0.05], [-0.05, 0.05]])
         self.prob_lvl = 0.6
         self.load_k = 0
         self.track_w = 9999.0
@@ -302,12 +302,12 @@ class CS_SMPC:
         path_time = rospy.Time.now()
         for ii in range(int(self.N / path_stride)):
             pose_stamped = PoseStamped()
-            dists = np.abs(x_bar[-1, ii * path_stride] - self.ar.map_ca.s)
+            dists = np.abs(xs[-1, ii * path_stride] - self.ar.map_ca.s)
             mini = np.argmin(dists)
             p = self.ar.map_ca.p[:, mini]
             theta = np.arctan2(self.ar.map_ca.dif_vecs[1, mini], self.ar.map_ca.dif_vecs[0, mini])
-            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - x_bar[-2, ii * path_stride] * np.sin(theta)
-            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + x_bar[-2, ii * path_stride] * np.cos(theta)
+            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - xs[-2, ii * path_stride] * np.sin(theta)
+            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + xs[-2, ii * path_stride] * np.cos(theta)
             pose_stamped.pose.position.z = 0.0
             pose_stamped.pose.orientation.z = 1.0
             pose_stamped.header.seq = ii

@@ -18,7 +18,7 @@ class MapCA:
 
     def __init__(self):
         rospy.Subscriber("/ius0/planned_path", AsiClothoidPath, self.path_cb)
-        self.path_pub = rospy.Publisher("/smoothed_path", Path, queue_size=10)
+        self.path_pub = rospy.Publisher("/smoothed_path", Path, queue_size=10, latch=True)
         # rospack = rospkg.RosPack()
         # # package_path = rospack.get_path('autorally_private_control')
         # package_path = '/home/user/catkin_ws/src/autorally_private/autorally_private_control'
@@ -112,7 +112,7 @@ class MapCA:
         if 1:  # a_0 < a < a_1 or a_1 < a < a_0:
             norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(np.cross(p1 - p0, M - p0)) / np.linalg.norm(
                 p1 - p0)
-            s_dist = np.linalg.norm(np.dot(M - p0, p1 - p0))
+            s_dist = np.dot(M-p0, p1-p0) / np.linalg.norm(p1-p0)
         else:
             printi = 1
             norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(M - p0)
