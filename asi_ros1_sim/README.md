@@ -32,6 +32,16 @@ A plan publisher is included for demonstration purposes only. This planner does 
 
 A very simple controller is included for demonstration purposes only. This controller does not exist in the image but is included with this repo and is automatically built and run with the other nodes when the example simulation is run.
 
+### CS-SMPC Controller Node
+
+A more advanced controller developed at Georgia Tech is included in the CS-SMPC node. This node subscribes to the vehicle odometry, the planned path, and the obstacle grid nodes. The path from the path planner is ingested and then smoothed and converted to a closed loop using spline interpolation. The controller will then attempt to follow the spline while avoiding obstacles.
+
+Obstacles as well as the vehicle's odometry are converted to map-based curvilinear coordinates so that their positions can be represented relative to the smoothed path.
+
+Currently a kinematic bicycle model with a simple approximation of the acceleration and steering controls are used for planning over the MPC horizon. In the future, a more complex model can be identified for the chosen vehicle.
+
+Both the smoothed trajectory and the planning horizon of the CS-SMPC controller can be visualized in RVIZ.
+
 ## Example simulation
 
 All nodes (except the boring controller node) are packaged in a docker image and a full simulation is composed and can be run using the python package vytools (installation instructions [https://pypi.org/project/vytools]) 
