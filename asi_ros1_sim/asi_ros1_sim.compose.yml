@@ -65,12 +65,13 @@ services:
   #   command: >-
   #     bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 &&
   #     (xterm &
-      # rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 ${CALIBRATION.namespace}/base_link map 1000 & 
-      # rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 odom map 1000 & 
-      # rosrun rviz rviz -d /rviz/asi_partners_sim.rviz)"
+  #     rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 ${CALIBRATION.namespace}/base_link map 1000 &
+  #     rosrun tf static_transform_publisher 0.0 0.0 0.0 0.0 0.0 0.0 1.0 odom map 1000 &
+  #     rosrun rviz rviz -d /rviz/asi_partners_sim.rviz)"
   #   image: $SIMIMAGE
-  #   networks:
-  #     rosnetwork:
+  #   network_mode: host
+  #   # networks:
+  #   #   rosnetwork:
   #   environment:
   #     ROS_MASTER_URI: http://rosmaster:11311
   #     DISPLAY: $DISPLAY

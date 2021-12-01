@@ -33,7 +33,7 @@
     ],
     "namespace": "ius0",
     "stop_time": 120,
-    "license_server": "surfacesim",
+    "license_server": "localhost",
     "comment": "SET license_server to carsim license server (e.g. 10.10.100.26:27003) or to 'surfacesim'",
     "x": 0,
     "y": 0,
