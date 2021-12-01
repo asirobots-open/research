@@ -493,7 +493,7 @@ if __name__ == '__main__':
             y = controller.update_control(V, K, X_bar, ii)
                 # control_update_rate.sleep()
                 # if ii == 1 and jj == 0:
-            # D = np.diag(y)
+            D = np.diag(y)
             # controller.goal_pub.publish(controller.goal)
             # controller.state = controller.ar.update_dynamics(controller.state, us[:, 0:1], 0.99)
             # ltv.join()
