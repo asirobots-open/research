@@ -9,14 +9,14 @@ x-vy:
     BAGFILE: directory:bags
 
 services:
-  # core:
-  #   command: bash -c ". install/setup.bash && echo 'starting core' && roscore"
-  #   image: $SIMIMAGE
-  #   network_mode: host
-  #   # networks:
-  #   #   rosnetwork:
-  #   #     aliases:
-  #   #       - rosmaster
+  core:
+    command: bash -c ". install/setup.bash && echo 'starting core' && roscore"
+    image: $SIMIMAGE
+    network_mode: host
+    # networks:
+    #   rosnetwork:
+    #     aliases:
+    #       - rosmaster
   grid_publisher_node:
     command: >-
       bash -c ". install/setup.bash && 
