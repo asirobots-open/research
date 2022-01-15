@@ -9,9 +9,8 @@
       "type": "string"
     },
     {
-      "name": "segments",
-      "length":"?",
-      "type": "definition:clothoid"
+      "name": "path",
+      "type": "definition:clothoid_path"
     },
     {
       "name": "namespace",

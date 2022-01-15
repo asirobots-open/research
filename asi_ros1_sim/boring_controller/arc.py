@@ -116,6 +116,11 @@ def makeArcPath(x0,y0,q0,path):
     segment_start = arc.endState()
   return arcs
 
+def linspace(arcs,n):
+  L = sum([a.distance for a in arcs])
+  l = [float(dd)/float(n-1)*L for dd in range(n)]
+  return [state(arcs,d) for d in l]
+
 def state(arcs,distance):
   for arc in arcs:
     if distance < arc.length():

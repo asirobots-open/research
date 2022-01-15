@@ -5,7 +5,7 @@ from asi_msgs.msg import AsiTBSG
 from nav_msgs.msg import OccupancyGrid
 from asi_msgs.msg import AsiClothoidPath, AsiClothoid
 
-import arc
+import clothoid, arc
 global TERRAIN, PATH
 TERRAIN = None
 PATH = None
@@ -23,8 +23,8 @@ def planCb(msg):
   global PATH
   pth = []
   for seg in msg.segments:
-    pth.append(arc.Arc(seg.start_x_m, seg.start_y_m, seg.start_heading_rad, 
-      seg.start_curvature_inv_m, seg.length_m, seg.speed_mps))
+    pth += clothoid.toArcs(seg.start_x_m, seg.start_y_m, seg.start_heading_rad, 
+      seg.start_curvature_inv_m, seg.delta_curvature_per_length_inv_m2, seg.length_m, seg.speed_mps)
   PATH = pth
   logging.warning('RECEIVED path {}'.format(PATH))
 
@@ -34,6 +34,7 @@ def terrainCb(msg):
 
 global count
 count = 0
+LOOKAHEAD_TIME_SEC = 0.5
 def odometryCb(msg):
     global count
     count += 1
@@ -53,7 +54,7 @@ def odometryCb(msg):
     heading = euler[2]
 
     pathl,finished = arc.getNearestPointAndPop(PATH,pos.x,pos.y)
-    lookahead = pathl + 3*abs(msg.twist.twist.linear.x)
+    lookahead = pathl + LOOKAHEAD_TIME_SEC*abs(msg.twist.twist.linear.x)
     nearest = arc.state(PATH,pathl)
     off_path_error =  (pos.x-nearest['x'])*math.sin(nearest['heading']) - \
                       (pos.y-nearest['y'])*math.cos(nearest['heading'])
