@@ -14,14 +14,21 @@ COPY . .
 # INSTALL ANYTHING YOU MIGHT NEED
 # RUN apt install -y vim
 #RUN apt-get update
-RUN apt-get install -y software-properties-common
-#RUN add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe"
-RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update
-RUN apt-get install -y python3.6
+# RUN apt-get install -y software-properties-common
+# #RUN add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe"
+# RUN add-apt-repository ppa:deadsnakes/ppa
+# RUN apt-get update
+# RUN apt-get install -y python3.9
 #RUN apt-get install -y python3-matplotlib
 #RUN apt-get install -y python3-numpy
 #RUN apt-get install -y python3-scipy
+
+RUN wget https://github.com/deadsnakes/python3.6/archive/refs/tags/debian/3.6.13-1+xenial1.tar.gz
+RUN tar -xvf 3.6.13-1+xenial1.tar.gz
+RUN /bin/sh python3.6-debian-3.6.13-1-xenial1/configure
+RUN make
+RUN make install
+RUN python3.6 -V
 
 RUN apt-get install -y python3-pip
 RUN python3.6 -m pip install --upgrade pip
