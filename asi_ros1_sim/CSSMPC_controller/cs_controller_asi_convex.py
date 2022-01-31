@@ -26,7 +26,6 @@ from asi_msgs.msg import mapCA
 import polylines_asi
 
 
-
 class CS_SMPC:
     def __init__(self):
         rospy.init_node('CSSMPC', anonymous=True)
@@ -48,8 +47,8 @@ class CS_SMPC:
         self.x_target = np.tile(np.array([self.target_speed, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N - 1, 1))
         self.x_target = np.vstack((self.x_target, np.array([2, 0, 0, 0, 0, 0]).reshape((-1, 1))))
         self.mu_N = 10000 * np.array([5., 2., 4., 4., 4., 300.]).reshape((-1, 1))
-        self.v_range = np.array([[-1.0, 1.0], [-0.0, 1.0]])
-        self.slew_rate = np.array([[-0.05, 0.05], [-0.05, 0.05]])
+        self.v_range = np.array([[-1.0, 1.0], [-0.2, 1.0]])
+        self.slew_rate = np.array([[-0.05, 0.05], [-0.20, 0.05]])
         self.prob_lvl = 0.6
         self.load_k = 0
         self.track_w = 9999.0
@@ -76,11 +75,11 @@ class CS_SMPC:
             # self.solver.M.setSolverParam("mioTolFeas", 1.0e-3)
 
         Q = np.zeros((self.n, self.n))
-        Q[0, 0] = 30
+        Q[0, 0] = 300
         Q[1, 1] = 0
         Q[2, 2] = 0
-        Q[3, 3] = 100
-        Q[4, 4] = 200
+        Q[3, 3] = 300
+        Q[4, 4] = 30
         self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
         # self.Q_bar[-8, -8] = 30
         # self.Q_bar[-7, -7] = 1000
@@ -89,7 +88,7 @@ class CS_SMPC:
         # self.Q_bar[-2, -2] = 2000
         # self.Q_bar[-1, -1] = 0
         R = np.zeros((self.m, self.m))
-        R[0, 0] = 0.0002  # 2
+        R[0, 0] = 2.0  # 2
         R[1, 1] = 2  # 1
         self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
 
@@ -258,7 +257,7 @@ class CS_SMPC:
         except (IndexError, ValueError) as e:
             print('no obs')
         # boundary_dists = boundary_dists[:, ::-1]
-        print('boundary dists:', boundary_dists)
+        # print('boundary dists:', boundary_dists)
         return boundary_dists
 
     def update_solution(self, x_0, us, D, K=None):
@@ -297,6 +296,7 @@ class CS_SMPC:
         X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
         x_bar = X_bar.reshape((self.n, self.N), order='F')
         # print(x_bar)
+        print(xs)
         trajectory = Path()
         path_stride = 1
         path_time = rospy.Time.now()
@@ -330,12 +330,12 @@ class CS_SMPC:
         u = np.where(u < self.v_range[:, 0], self.v_range[:, 0], u)
         print(u)
         self.chassis_command.steer_cmd = u[0]
-        if self.state[0, 0] > 3:
-            self.chassis_command.throttle_cmd = 0.0
+        if u[1] >= 0:
+            self.chassis_command.throttle_cmd = u[1]
+            self.chassis_command.brake_cmd = 0.00
         else:
-            self.chassis_command.throttle_cmd = 0.1
-        self.chassis_command.throttle_cmd = u[1]
-        self.chassis_command.brake_cmd = 0.03
+            self.chassis_command.throttle_cmd = 0.00
+            self.chassis_command.brake_cmd = -1.0 *u[1]
         self.chassis_command.header.stamp = rospy.Time.now()
         # self.chassis_command.sender = "CSSMPC"
         self.command_pub.publish(self.chassis_command)
@@ -409,15 +409,16 @@ class CS_SMPC:
 
 
 if __name__ == '__main__':
+    t2 = time.time()
     controller = CS_SMPC()
     # controller.ltv_solver = cs_solver.CSSolver(controller.n, controller.m, controller.l, controller.N, controller.u_min, controller.u_max, mean_only=True)
-    num_steps_applied = int(controller.dt_solve / controller.dt_linearization)
+    num_steps_applied = 1#int(controller.dt_solve / controller.dt_linearization)
     # solver_io = Queue(maxsize=1)
     # ltv_io = MQ()
     dt_control = controller.dt_solve
     control_update_rate = rospy.Rate(1/dt_control)
     linearization_step_rate = rospy.Rate(1/controller.dt_linearization)
-    us = np.tile(np.array([0.0, 0.2]).reshape((-1, 1)), (1, controller.N))
+    us = np.tile(np.array([0.0, 0.02]).reshape((-1, 1)), (1, controller.N))
 
     ks = np.zeros((2*10, 8*10, 25*20))
     ss = np.zeros((8, 25*20))
@@ -491,7 +492,9 @@ if __name__ == '__main__':
             # controller.ltv_solve(ltv_io)
             # for jj in range(int(controller.dt_linearization / dt_control)):
             y = controller.update_control(V, K, X_bar, ii)
-                # control_update_rate.sleep()
+            print('time: ', time.time() - t2)
+            t2 = time.time()
+            # control_update_rate.sleep()
                 # if ii == 1 and jj == 0:
             D = np.diag(y)
             # controller.goal_pub.publish(controller.goal)
