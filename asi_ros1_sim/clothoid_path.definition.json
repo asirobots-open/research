@@ -1,0 +1,9 @@
+{
+  "element": [
+    {
+      "name": "segments",
+      "length": "?",
+      "type": "definition:clothoid"
+    }
+  ]
+}

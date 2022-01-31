@@ -1,0 +1,32 @@
+x-vy:
+  anchors:
+    CONTROLLERIMAGE: stage:controller
+  subcompose:
+    - name: compose:cs_smpc_local
+  
+services:
+  core:
+    network_mode: host
+  grid_publisher_node:
+    network_mode: host
+    environment:
+      ROS_MASTER_URI: http://localhost:11311
+  planner:
+    network_mode: host
+    environment:
+      ROS_MASTER_URI: http://localhost:11311
+  controller:
+    network_mode: host
+    environment:
+      ROS_MASTER_URI: http://localhost:11311
+  simulator_node:
+    network_mode: host
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  rviz:
+    command: "sleep 1000000"
+    network_mode: host
+    environment:
+      ROS_MASTER_URI: http://localhost:11311
+
+version: '3.2'
