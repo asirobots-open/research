@@ -205,7 +205,7 @@ class MapCA:
         closed_ps = np.append(self.p, self.p[:, 0:1], axis=1)
         closed_speeds = np.append(self.p_speeds, self.p_speeds[:, 0:1], axis=1)
         tck, u = scipy.interpolate.splprep(np.vstack((closed_ps, closed_speeds)), u=None, s=0.0, per=1)
-        num_steps = 100
+        num_steps = 1000
         u_new = np.linspace(u.min(), u.max(), num_steps)
         x_new, y_new, speed_new = scipy.interpolate.splev(u_new, tck, der=0)
         dx, dy, _ = scipy.interpolate.splev(u_new, tck, der=1)
