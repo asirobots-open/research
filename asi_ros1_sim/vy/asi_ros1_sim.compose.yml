@@ -18,8 +18,13 @@ services:
   grid_publisher_node:
     command: >-
       bash -c ". install/setup.bash && 
-      roslaunch --wait map_grid_publishers local_map_grid_publisher.launch gp_namespace:=${CALIBRATION.namespace} circle_list:='${CALIBRATION.obstacles}' republish_period:=0.3"
+      roslaunch --wait map_grid_publishers local_map_grid_publisher.launch gp_namespace:=${CALIBRATION.namespace} calibration_file:='/calibration.json' republish_period:=0.3"
     image: $SIMIMAGE
+    volumes:
+      - read_only: true
+        source: $CALIBRATION>calibration.json
+        target: /calibration.json
+        type: bind
     networks:
       rosnetwork:
     environment:

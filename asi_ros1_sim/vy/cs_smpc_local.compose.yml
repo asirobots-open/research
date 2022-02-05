@@ -2,7 +2,7 @@ x-vy:
   anchors:
     CONTROLLERIMAGE: stage:controller
   subcompose:
-    - name: compose:cs_smpc_local
+    - name: compose:cs_smpc
   
 services:
   core:

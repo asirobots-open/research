@@ -1,5 +1,6 @@
 {
   "data": {
+    "map":"object:asi_main_figure_8_map",
     "obstacles": "-170,120, 2",
     "viapoints": "",
     "path": "object:asi_main_path",
