@@ -1,0 +1,76 @@
+x-vy:
+  anchors:
+    DR: argument:Debug
+    CALIBRATION: definition:asi_ros1_sim
+    BORINGNODES: stage:asi_ros2_sim
+    RVIZFILES: vydir:asi_ros1_sim
+    BAGFILE: directory:bags
+
+services:
+  grid:
+    command: >-
+      bash -c ". /opt/ros/$$ROS2/setup.bash && . install/setup.bash && 
+        ros2 run boring_nodes boring_grid --ros-args -r __ns:=/${CALIBRATION.namespace} -p calibration_file:=/calibration.json -p width_cells:=50 -p front_cells:=70 -p back_cells:=10"
+    image: $BORINGNODES
+    networks:
+      rosnetwork:
+    volumes:
+      - read_only: true
+        source: $CALIBRATION>calibration.json
+        target: /calibration.json
+        type: bind
+  planner:
+    command: >-
+      bash -c "sleep 1 && . /opt/ros/$$ROS2/setup.bash && . install/setup.bash && 
+        ros2 run boring_nodes boring_planner --ros-args -r __ns:=/${CALIBRATION.namespace} -p calibration_file:=/calibration.json"
+    image: $BORINGNODES
+    networks:
+      rosnetwork:
+    volumes:
+      - read_only: true
+        source: $CALIBRATION>calibration.json
+        target: /calibration.json
+        type: bind
+  controller:
+    command: >-
+      bash -c ". /opt/ros/$$ROS2/setup.bash && . install/setup.bash && 
+        ros2 run boring_nodes boring_controller --ros-args -r __ns:=/${CALIBRATION.namespace}"
+    image: $BORINGNODES
+    networks:
+      rosnetwork:
+  simulator:
+    command: >-
+      bash -c ". /opt/ros/$$ROS2/setup.bash && . install/setup.bash && 
+        ./run_carsim.sh ${CALIBRATION.license_server} --ros-args -r __ns:=/${CALIBRATION.namespace} -p surface_file:=/calibration.json -p stop_time:=${CALIBRATION.stop_time} -p world_frame_id:=map"
+    image: $BORINGNODES
+    networks:
+      rosnetwork:
+    volumes:
+      - $CALIBRATION>calibration.json:/calibration.json:ro
+      - ./bags:/bags
+  # simulator:
+  #   command: >-
+  #     bash -c ". /opt/ros/$$ROS2/setup.bash && . install/setup.bash && 
+  #       ros2 run boring_nodes boring_ackermann --ros-args -r __ns:=/${CALIBRATION.namespace} -p x:=${CALIBRATION.x} -p y:=${CALIBRATION.y} -p heading:=${CALIBRATION.heading}"
+  #   image: $BORINGNODES
+  #   networks:
+  #     rosnetwork:
+  #   volumes:
+  #     - $CALIBRATION>calibration.json:/calibration.json:ro
+  #     - ./bags:/bags
+  rviz:
+    command: >-
+      bash -c ". /opt/ros/$$ROS2/setup.bash && . install/setup.bash && (xterm & rviz2 -d /rviz/asi_partners_sim_ros2.rviz)"
+    image: $BORINGNODES
+    networks:
+      rosnetwork:
+    privileged: true
+    environment:
+      DISPLAY: $DISPLAY
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${RVIZFILES}/rviz:/rviz
+
+networks:
+  rosnetwork:
+version: '3.2'
