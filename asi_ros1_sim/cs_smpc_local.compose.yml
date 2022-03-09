@@ -2,7 +2,7 @@ x-vy:
   anchors:
     CONTROLLERIMAGE: stage:controller
   subcompose:
-    - name: compose:cs_smpc_local
+    - name: compose:asi_ros1_sim
   
 services:
   core:
@@ -16,13 +16,16 @@ services:
     environment:
       ROS_MASTER_URI: http://localhost:11311
   controller:
+    command: >-
+      bash -c ". install/setup.bash && until rostopic list ; do sleep 1; done && sleep 3 && source devel/setup.bash && python3.6 polylines_asi.py & source devel/setup.bash && python3.6 cs_controller_asi_convex.py"
+    image: $CONTROLLERIMAGE
     network_mode: host
     environment:
       ROS_MASTER_URI: http://localhost:11311
   simulator_node:
     network_mode: host
     environment:
-      ROS_MASTER_URI: http://rosmaster:11311
+      ROS_MASTER_URI: http://localhost:11311
   rviz:
     command: "sleep 1000000"
     network_mode: host
