@@ -1,0 +1,9 @@
+{
+  "element": [
+    {
+      "length": "?",
+      "name": "shapes",
+      "type": "definition:path2d"
+    }
+  ]
+}

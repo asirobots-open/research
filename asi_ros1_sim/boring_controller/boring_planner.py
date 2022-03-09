@@ -72,6 +72,7 @@ while not rospy.is_shutdown():
   if MYCLOTHOIDS:
     arcs = clothoid.ASIClothoidToArcs(MYCLOTHOIDS)
     vis_pub.publish(plotarcs(arcs))
+    logging.error('Publishing clothoid path containing {} clothoids!'.format(len(MYCLOTHOIDS)))
     cmd_pub.publish(pathplan(MYCLOTHOIDS))
 
   MYCLOTHOIDS = None
