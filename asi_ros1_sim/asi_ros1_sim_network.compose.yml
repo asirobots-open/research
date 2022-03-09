@@ -1,0 +1,40 @@
+x-vy:
+  subcompose:
+    - name: compose:asi_ros1_sim
+
+services:
+  core:
+    networks:
+      rosnetwork:
+        aliases:
+          - rosmaster
+  grid_publisher_node:
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  planner:
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  controller:
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  simulator_node:
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+  rviz:
+    networks:
+      rosnetwork:
+    environment:
+      ROS_MASTER_URI: http://rosmaster:11311
+      DISPLAY: $DISPLAY
+
+networks:
+  rosnetwork:
+version: '3.2'

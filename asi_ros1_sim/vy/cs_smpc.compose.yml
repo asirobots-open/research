@@ -2,7 +2,7 @@ x-vy:
   anchors:
     CONTROLLERIMAGE: stage:controller
   subcompose:
-    - name: compose:asi_ros1_sim
+    - name: compose:asi_ros1_sim_network
   
 services:
   controller:

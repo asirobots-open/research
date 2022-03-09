@@ -172,7 +172,7 @@ class MapCA:
         self.wr = (speeds.lbSpeed + speeds.rbSpeed) / 2.0
 
     def path_cb(self, path):
-        num_segs = len(path.segments)
+        num_segs = len(path.segments) - 2
         p_x = np.zeros((1, num_segs))
         p_y = np.zeros((1, num_segs))
         p_theta = np.zeros((1, num_segs))
@@ -182,6 +182,8 @@ class MapCA:
         p_speed = np.zeros((1, num_segs))
 
         for ii, clothoid in enumerate(path.segments):
+            if ii == num_segs:
+                break
             p_x[0, ii] = clothoid.start_x_m
             p_y[0, ii] = clothoid.start_y_m
             p_theta[0, ii] = clothoid.start_heading_rad
@@ -205,7 +207,7 @@ class MapCA:
         closed_ps = np.append(self.p, self.p[:, 0:1], axis=1)
         closed_speeds = np.append(self.p_speeds, self.p_speeds[:, 0:1], axis=1)
         tck, u = scipy.interpolate.splprep(np.vstack((closed_ps, closed_speeds)), u=None, s=0.0, per=1)
-        num_steps = 1000
+        num_steps = 500
         u_new = np.linspace(u.min(), u.max(), num_steps)
         x_new, y_new, speed_new = scipy.interpolate.splev(u_new, tck, der=0)
         dx, dy, _ = scipy.interpolate.splev(u_new, tck, der=1)

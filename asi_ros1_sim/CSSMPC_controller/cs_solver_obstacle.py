@@ -135,6 +135,9 @@ class CSSolver:
             I = Matrix.eye(n*N)
             inv_prob = scipy.stats.norm.ppf(prob_lvl)
 
+            self.u_steering = M.parameter([N])
+            self.u_throttle = M.parameter([N])
+
             # convert to linear objective with quadratic cone constraints
             u = Expr.mul(mu_0_T_A_T_Q_bar_B, V)
             # coordinate shift, check to make sure T = *2
@@ -142,7 +145,8 @@ class CSSolver:
             r = Expr.mul(d_T_Q_B, V)
             # v = Expr.mul(vec_T_sigma_y_Q_bar_B, Expr.flatten(K))
             zz = M.variable("zz", 1, Domain.unbounded())
-            M.constraint(Expr.vstack(0.5, zz, Expr.mul(delta_slew_cost, Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)))), Domain.inRotatedQCone())
+            # M.constraint(Expr.vstack(0.5, zz, Expr.mul(delta_slew_cost, Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)))), Domain.inRotatedQCone())
+            M.constraint(Expr.vstack(0.5, zz, Expr.mul(delta_slew_cost, Expr.sub(V.pick(np.arange(0, m*N, 2, dtype=np.int32)), self.u_steering))), Domain.inRotatedQCone())
             if not mean_only:
                 M.objective(ObjectiveSense.Minimize, Expr.add([q, r, u, w, x, y1, y2, z1, z2, zz]))
                 M.constraint(Expr.vstack(0.5, w, Expr.mul(Q_bar_half_B, V)), Domain.inRotatedQCone())
@@ -160,10 +164,8 @@ class CSSolver:
 
             # slew-rate constraints
             # M.constraint(Expr.sub(V.slice(2, N*m), V.slice(0, N*m-2)), Domain.inRange(np.tile(slew_rate[:, 0], N-1), np.tile(slew_rate[:,  1], N-1)))
-            self.u_steering = M.parameter()
-            self.u_throttle = M.parameter()
-            M.constraint(Expr.sub(V.index(1), self.u_throttle), Domain.inRange(slew_rate[1, 0], slew_rate[1, 1]))
-            M.constraint(Expr.sub(V.index(0), self.u_steering), Domain.inRange(slew_rate[0, 0], slew_rate[0, 1]))
+            M.constraint(Expr.sub(V.index(1), self.u_throttle.index(0)), Domain.inRange(slew_rate[1, 0], slew_rate[1, 1]))
+            M.constraint(Expr.sub(V.index(0), self.u_steering.index(0)), Domain.inRange(slew_rate[0, 0], slew_rate[0, 1]))
 
             # terminal mean constraint
             # mu_N = np.zeros((n, 1))
@@ -363,8 +365,8 @@ class CSSolver:
         self.sigma_N_inv.setValue(sigma_N_inv)
         self.neg_x_0_T_Q_B.setValue(2*np.dot(np.dot(-x_0.T, Q_bar), B))
         self.d_T_Q_B.setValue(2*np.dot(np.dot(d.T, Q_bar), B))
-        self.u_throttle.setValue(u_0[1])
-        self.u_steering.setValue(u_0[0])
+        self.u_throttle.setValue(u_0[1, :])
+        self.u_steering.setValue(u_0[0, :])
         self.mu_N.setValue(mu_N)
         if isinstance(track_width, np.ndarray):
             self.beta.setValue(track_width)

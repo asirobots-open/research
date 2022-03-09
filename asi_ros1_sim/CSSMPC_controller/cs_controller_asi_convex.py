@@ -1,14 +1,9 @@
 #! /usr/bin/env python3
-from multiprocessing.dummy import DummyProcess, Queue
-from multiprocessing import Process
-from multiprocessing import Queue as MQ
 import numpy as np
 import time
-import sys
 #import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
-# import os
-# import subprocess
+import copy
 import cs_model_asi as cs_model
 import cs_solver_obstacle as cs_solver
 import rospy
@@ -33,13 +28,14 @@ class CS_SMPC:
         # self.runstop_pub = rospy.Publisher("/LTVMPC/runstop", runstop, queue_size=10)
         self.path_pub = rospy.Publisher("/trajectory", Path, queue_size=1)
         self.goal_pub = rospy.Publisher("/goal", PointCloud, queue_size=1)
+        self.boundary_pub = rospy.Publisher("/boundaries", Path, queue_size=2)
         self.chassis_command = AsiTBSG()
         self.begin = 0
 
         self.n = 6
         self.m = 2
         self.l = 6
-        self.N = 20
+        self.N = 40
         self.dt_linearization = 0.10
         self.dt_solve = 0.10
 
@@ -48,7 +44,7 @@ class CS_SMPC:
         self.x_target = np.vstack((self.x_target, np.array([2, 0, 0, 0, 0, 0]).reshape((-1, 1))))
         self.mu_N = 10000 * np.array([5., 2., 4., 4., 4., 300.]).reshape((-1, 1))
         self.v_range = np.array([[-1.0, 1.0], [-0.2, 1.0]])
-        self.slew_rate = np.array([[-0.05, 0.05], [-0.20, 0.05]])
+        self.slew_rate = np.array([[-0.3, 0.3], [-0.20, 0.05]])
         self.prob_lvl = 0.6
         self.load_k = 0
         self.track_w = 9999.0
@@ -69,13 +65,13 @@ class CS_SMPC:
         if self.load_k:
             self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
         else:
-            self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.v_range, self.slew_rate, (False, 4*self.N), mean_only=True, k_form=1, prob_lvl=self.prob_lvl, chance_const_N=self.N, boundary_dim=-2, delta_slew_cost=10)
+            self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.v_range, self.slew_rate, (False, 4*self.N), mean_only=True, k_form=1, prob_lvl=self.prob_lvl, chance_const_N=self.N, boundary_dim=-2, delta_slew_cost=1.0)
             # self.solver.M.setSolverParam("mioTolAbsGap", 100)
             # self.solver.M.setSolverParam("mioMaxTime", 0.1)
             # self.solver.M.setSolverParam("mioTolFeas", 1.0e-3)
 
         Q = np.zeros((self.n, self.n))
-        Q[0, 0] = 300
+        Q[0, 0] = 10
         Q[1, 1] = 0
         Q[2, 2] = 0
         Q[3, 3] = 300
@@ -83,10 +79,10 @@ class CS_SMPC:
         self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
         # self.Q_bar[-8, -8] = 30
         # self.Q_bar[-7, -7] = 1000
-        # # Q_bar[-6, -6] = 100
-        # self.Q_bar[-3, -3] = 1000
-        # self.Q_bar[-2, -2] = 2000
-        # self.Q_bar[-1, -1] = 0
+        # Q_bar[-6, -6] = 100
+        self.Q_bar[-3, -3] = 300*40*2
+        self.Q_bar[-2, -2] = 30*40*10
+        self.Q_bar[-1, -1] = 0
         R = np.zeros((self.m, self.m))
         R[0, 0] = 2.0  # 2
         R[1, 1] = 2  # 1
@@ -161,7 +157,7 @@ class CS_SMPC:
         self.y = map_msg.y
         self.yaw = map_msg.yaw
         self.target_speed = map_msg.speed
-        self.x_target = np.tile(np.array([self.target_speed, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N, 1))
+        self.x_target = np.tile(np.array([self.target_speed - 10.0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N, 1))
         self.state = np.array([vx, vy, wz, epsi, ey, s]).reshape((-1, 1))
         self.begin = 1
 
@@ -232,7 +228,8 @@ class CS_SMPC:
         self.x_target[0:-self.n:self.n, 0] = target_speeds
 
     def convert_obs_to_constraints(self, xs):
-        boundary_dists = 999 * np.ones((2, self.N))
+        ceiling = 20.0
+        boundary_dists = ceiling * np.ones((2, self.N))
         try:
             obs_locs_map = np.ones_like(self.obs_locs)
             for ii in range(self.obs_locs.shape[1]):
@@ -243,19 +240,50 @@ class CS_SMPC:
             left_bound = np.min(obs_locs_map[0, :])
             right_bound = np.max(obs_locs_map[0, :])
             if np.abs(right_bound) < np.abs(left_bound):
-                left_bound = 999.0
+                left_bound = ceiling
             else:
-                right_bound = -999.0
+                right_bound = -ceiling
             s_start = np.min(obs_locs_map[1, :])
             s_end = np.max(obs_locs_map[1, :])
             k_start = np.argmin(np.abs(xs[-1, :] - s_start))
             k_end = np.argmin(np.abs(xs[-1, :] - s_end))
             dist_start = np.min(np.abs(xs[-1, :] - s_start))
             dist_end = np.min(np.abs(xs[-1, :] - s_end))
-            if dist_start and dist_end < 10.0:
-                boundary_dists[:, k_start:k_end+1] = np.vstack((left_bound, -1*right_bound))
+            # if dist_start and dist_end < 10.0:
+            boundary_dists[:, k_start:k_end+1] = np.vstack((left_bound, -1*right_bound))
         except (IndexError, ValueError) as e:
             print('no obs')
+
+        left_bound = Path()
+        right_bound = Path()
+        bound_stride = 1
+        bound_time = rospy.Time.now()
+        for ii in range(int(self.N / bound_stride)):
+            pose_stamped = PoseStamped()
+            dists = xs[-1, ii * bound_stride] - self.ar.map_ca.s
+            mini = np.argmin(np.abs(dists))
+            p = self.ar.map_ca.p[:, mini]
+            theta = np.arctan2(self.ar.map_ca.dif_vecs[1, mini], self.ar.map_ca.dif_vecs[0, mini])
+            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - boundary_dists[0, ii * bound_stride] * np.sin(theta)
+            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + boundary_dists[0, ii * bound_stride] * np.cos(theta)
+            pose_stamped.pose.position.z = 0.0
+            pose_stamped.pose.orientation.z = 1.0
+            pose_stamped.header.seq = ii
+            pose_stamped.header.stamp = bound_time
+            pose_stamped.header.frame_id = 'map'
+            left_bound.poses.append(copy.deepcopy(pose_stamped))
+            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - -1*boundary_dists[1, ii * bound_stride] * np.sin(theta)
+            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + -1*boundary_dists[1, ii * bound_stride] * np.cos(theta)
+            right_bound.poses.append(pose_stamped)
+        left_bound.header.frame_id = 'map'
+        left_bound.header.seq = 0
+        left_bound.header.stamp = bound_time
+        self.boundary_pub.publish(left_bound)
+        right_bound.header.frame_id = 'map'
+        right_bound.header.seq = 0
+        right_bound.header.stamp = bound_time
+        self.boundary_pub.publish(right_bound)
+
         # boundary_dists = boundary_dists[:, ::-1]
         # print('boundary dists:', boundary_dists)
         return boundary_dists
@@ -280,7 +308,7 @@ class CS_SMPC:
         # boundary_dists = 999
         # self.x_target[5:self.n*self.N:self.n, 0] = nom_path
 
-        self.solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, self.Q_bar, self.R_bar, us[:, 0], self.x_target, self.mu_N, boundary_dists, K=K)
+        self.solver.populate_params(A, B, d, D, xs[:, 0], sigma_0, sigma_N_inv, self.Q_bar, self.R_bar, us, self.x_target, self.mu_N, boundary_dists, K=K)
         try:
             V, K = self.solver.solve()
             K = K.reshape((self.m * self.N, self.n * self.N))
@@ -297,17 +325,26 @@ class CS_SMPC:
         x_bar = X_bar.reshape((self.n, self.N), order='F')
         # print(x_bar)
         print(xs)
+        # xs_cartesian = np.zeros((self.n, self.N))
+        # xs_cartesian[:, 0] = x_0.flatten()
+        # xs_cartesian[3:, 0] = np.vstack((self.yaw, self.x, self.y)).flatten()
+        # self.ar.map_coords = False
+        # for ii in range(self.N - 1):
+        #     xs_cartesian[:, ii + 1] = self.ar.update_dynamics(xs_cartesian[:, ii:ii + 1], us[:, ii:ii + 1], self.dt_linearization).flatten()
+        # self.ar.map_coords = True
         trajectory = Path()
         path_stride = 1
         path_time = rospy.Time.now()
         for ii in range(int(self.N / path_stride)):
             pose_stamped = PoseStamped()
-            dists = np.abs(xs[-1, ii * path_stride] - self.ar.map_ca.s)
-            mini = np.argmin(dists)
+            dists = x_bar[-1, ii * path_stride] - self.ar.map_ca.s
+            mini = np.argmin(np.abs(dists))
             p = self.ar.map_ca.p[:, mini]
             theta = np.arctan2(self.ar.map_ca.dif_vecs[1, mini], self.ar.map_ca.dif_vecs[0, mini])
-            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - xs[-2, ii * path_stride] * np.sin(theta)
-            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + xs[-2, ii * path_stride] * np.cos(theta)
+            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - x_bar[-2, ii * path_stride] * np.sin(theta)
+            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + x_bar[-2, ii * path_stride] * np.cos(theta)
+            # pose_stamped.pose.position.x = xs_cartesian[4, ii * path_stride]
+            # pose_stamped.pose.position.y = xs_cartesian[5, ii * path_stride]
             pose_stamped.pose.position.z = 0.0
             pose_stamped.pose.orientation.z = 1.0
             pose_stamped.header.seq = ii
