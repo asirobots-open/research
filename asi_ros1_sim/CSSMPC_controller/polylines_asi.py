@@ -1,24 +1,30 @@
 #! /usr/bin/env python3
+import os
 import numpy as np
 #import matplotlib.pyplot as plt
 import time
-import rospy
+import rclpy
+import rclpy.node
 import scipy.interpolate
-from nav_msgs.msg import Odometry, Path
+from nav_msgs.msg import Odometry, Path, OccupancyGrid
 from geometry_msgs.msg import PoseStamped
 # from autorally_msgs.msg import wheelSpeeds
 from scipy.spatial.transform import Rotation
-from asi_msgs.msg import mapCA
+from asi_msgs.msg import MapCA
 from asi_msgs.msg import AsiClothoidPath
 from asi_msgs.msg import AsiClothoid
 import rospkg
 
 
-class MapCA:
+class Map_CA(rclpy.node.Node):
 
     def __init__(self):
-        rospy.Subscriber("/ius0/planned_path", AsiClothoidPath, self.path_cb)
-        self.path_pub = rospy.Publisher("/smoothed_path", Path, queue_size=10, latch=True)
+        super().__init__('map_ca')
+        latching_qos = rclpy.qos.QoSProfile(depth=1,
+                                            durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
+                                            reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
+        self.create_subscription(AsiClothoidPath, "/ius0/planned_path", self.path_cb, latching_qos)
+        self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
         # rospack = rospkg.RosPack()
         # # package_path = rospack.get_path('autorally_private_control')
         # package_path = '/home/user/catkin_ws/src/autorally_private/autorally_private_control'
@@ -48,6 +54,7 @@ class MapCA:
         self.s = np.empty(())
         self.speeds = np.empty(())
         self.curvatures = np.empty(())
+        self.mapca = MapCA()
 
         self.wf = 0.1
         self.wr = 0.1
@@ -56,9 +63,11 @@ class MapCA:
         # plt.plot(self.midpoints[0], self.midpoints[1], 'x')
         # plt.show()
 
-        rospy.Subscriber("/ius0/odom_topic", Odometry, self.odom_cb)
+        self.create_subscription(Odometry, "/ius0/odom_topic", self.odom_cb, 1)
         # rospy.Subscriber("/wheelSpeeds", wheelSpeeds, self.wheel_cb)
-        self.mapca_pub = rospy.Publisher('/MAP_CA/mapCA', mapCA, queue_size=1)
+        self.mapca_pub = self.create_publisher(MapCA, '/MAP_CA/mapCA', 10)
+        # self.create_subscription(OccupancyGrid, "/ius0/terrain_cost", self.obstacle_callback, 1)
+        self.boundary_pub = self.create_publisher(Path, "/boundaries", 2)
 
     def localize(self, M, psi):
         # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)
@@ -136,6 +145,7 @@ class MapCA:
         return head_dist, norm_dist, s_dist, speed
 
     def odom_cb(self, odom):
+        # self.get_logger().info('odom received')
         # start = time.time()
         x = odom.pose.pose.position.x
         y = odom.pose.pose.position.y
@@ -144,27 +154,29 @@ class MapCA:
         # vx = odom.twist.twist.linear.x * np.cos(yaw) + odom.twist.twist.linear.y * np.sin(yaw)
         # vy = odom.twist.twist.linear.x * -np.sin(yaw) + odom.twist.twist.linear.y * np.cos(yaw)
         # for whatever reason map_msg y velocity seems inverted so apply -
-        vx = odom.twist.twist.linear.x * np.cos(yaw) - odom.twist.twist.linear.y * np.sin(yaw)
-        vy = odom.twist.twist.linear.x * -np.sin(yaw) - odom.twist.twist.linear.y * np.cos(yaw)
+        vx = odom.twist.twist.linear.x #* np.cos(yaw) - odom.twist.twist.linear.y * np.sin(yaw)
+        # self.get_logger().info('vxs: ' + str(odom.twist.twist.linear.x) + ' ' + str(vx))
+        vy = odom.twist.twist.linear.y # odom.twist.twist.linear.x * -np.sin(yaw) - odom.twist.twist.linear.y * np.cos(yaw)
         wz = odom.twist.twist.angular.z
 
         d_psi, n, s, speed = self.localize(np.asarray([x, y]), yaw)
-        mapca = mapCA()
-        mapca.header.stamp = rospy.Time.now()
-        mapca.vx = vx
-        mapca.vy = vy
-        mapca.wz = wz
-        mapca.wf = self.wf
-        mapca.wr = self.wr
-        mapca.s = s
-        mapca.ey = n
-        mapca.epsi = d_psi
-        mapca.x = x
-        mapca.y = y
-        mapca.yaw = yaw
-        mapca.path_s = s
-        mapca.speed = speed
-        self.mapca_pub.publish(mapca)
+        self.mapca.header.stamp = self.get_clock().now().to_msg()
+        self.mapca.vx = vx
+        self.mapca.vy = vy
+        self.mapca.wz = wz
+        self.mapca.wf = self.wf
+        self.mapca.wr = self.wr
+        self.mapca.s = s
+        self.mapca.ey = n
+        self.mapca.epsi = d_psi
+        self.mapca.x = x
+        self.mapca.y = y
+        self.mapca.yaw = yaw
+        self.mapca.path_s = s
+        self.mapca.speed = speed
+        self.mapca_pub.publish(self.mapca)
+        # self.get_logger().info('published map odom')
+
         # print(time.time() - start)
 
     def wheel_cb(self, speeds):
@@ -172,6 +184,7 @@ class MapCA:
         self.wr = (speeds.lbSpeed + speeds.rbSpeed) / 2.0
 
     def path_cb(self, path):
+        self.get_logger().info("received path")
         num_segs = len(path.segments) - 2
         p_x = np.zeros((1, num_segs))
         p_y = np.zeros((1, num_segs))
@@ -196,14 +209,14 @@ class MapCA:
         self.p_theta = np.append(p_theta, np.arctan2(self.p[1, 0] - self.p[1, -1], self.p[0, 0] - self.p[0, -1]).reshape((1, 1)), axis=1)
         self.p_length = np.append(p_length, np.linalg.norm(self.p[:, 0] - self.p[:, -1]).reshape((1, 1)), axis=1)
         self.p_speeds = np.append(p_speed, p_speed[:, -1].reshape((1, 1)), axis=1)
-        print(self.p, self.p_theta)
-        print(self.p_speeds.shape)
+        # print(self.p, self.p_theta)
+        # print(self.p_speeds.shape)
         dif_vecs = self.p[:, 1:] - self.p[:, :-1]
         self.dif_vecs = dif_vecs.copy()
         self.slopes = dif_vecs[1, :] / (dif_vecs[0, :] + 1e-6)
         self.midpoints = self.p[:, :-1] + dif_vecs / 2
         self.s = np.cumsum(np.linalg.norm(dif_vecs, axis=0))
-        print(self.p.shape)
+        # print(self.p.shape)
         closed_ps = np.append(self.p, self.p[:, 0:1], axis=1)
         closed_speeds = np.append(self.p_speeds, self.p_speeds[:, 0:1], axis=1)
         tck, u = scipy.interpolate.splprep(np.vstack((closed_ps, closed_speeds)), u=None, s=0.0, per=1)
@@ -221,15 +234,16 @@ class MapCA:
         self.slopes = dif_vecs[1, :] / dif_vecs[0, :]
         self.midpoints = self.p[:, :-1] + dif_vecs/2
         self.s = np.cumsum(np.linalg.norm(dif_vecs, axis=0))
+        print('s set to:', self.s)
         # plt.plot(self.p[0, :], self.p[1, :])
         # plt.plot(x_new, y_new)
         # plt.show()
         trajectory = Path()
         path_stride = 2
-        path_time = rospy.Time.now()
+        path_time = self.get_clock().now().to_msg()
         for ii in range(int(num_steps / path_stride)):
             pose_stamped = PoseStamped()
-            pose_stamped.header.seq = ii
+            # pose_stamped.header.seq = ii
             pose_stamped.header.stamp = path_time
             pose_stamped.header.frame_id = 'map'
             pose_stamped.pose.position.x = self.p[0, ii * path_stride]
@@ -237,51 +251,159 @@ class MapCA:
             pose_stamped.pose.position.z = 0.0
             pose_stamped.pose.orientation.z = 1.0
             trajectory.poses.append(pose_stamped)
-        trajectory.header.seq = 0
+        # trajectory.header.seq = 0
         trajectory.header.stamp = path_time
         trajectory.header.frame_id = 'map'
         self.path_pub.publish(trajectory)
         self.trajectory = trajectory
+        np.savez('planned_path.npz', s=self.s, rho=self.rho, p=self.p, dif_vecs=self.dif_vecs)
+        self.get_logger().info('saving to ' + str(os.getcwd()))
         return p_curvature, p_speed, self.s
 
+    def convert_obs_to_constraints(self):
+        ceiling = 20.0
+        # boundary_dists = ceiling * np.ones((2, self.N))
+        try:
+            obs_locs_map = np.ones_like(self.obs_locs)
+            for ii in range(self.obs_locs.shape[1]):
+                _, norm_dist, s_dist, speed = self.localize(self.obs_locs[:, ii], 0.0)
+                obs_locs_map[:, ii] = np.array([norm_dist, s_dist])
+            # print(obs_locs_map[:, :])
+            # print(self.state[-2:])
+            left_bound = np.min(obs_locs_map[0, :])
+            right_bound = np.max(obs_locs_map[0, :])
+            if np.abs(right_bound) < np.abs(left_bound):
+                left_bound = ceiling
+            else:
+                right_bound = -ceiling
+            s_start = np.min(obs_locs_map[1, :])
+            s_end = np.max(obs_locs_map[1, :])
+            return s_start, s_end, left_bound, right_bound
+            # k_start = np.argmin(np.abs(xs[-1, :] - s_start))
+            # k_end = np.argmin(np.abs(xs[-1, :] - s_end))
+            # dist_start = np.min(np.abs(xs[-1, :] - s_start))
+            # dist_end = np.min(np.abs(xs[-1, :] - s_end))
+            # # if dist_start and dist_end < 10.0:
+            # boundary_dists[:, k_start:k_end+1] = np.vstack((left_bound, -1*right_bound))
+        except (IndexError, ValueError) as e:
+            print('no obs')
 
-def map_publish():
-    map_pub = rospy.Publisher('/path', AsiClothoidPath, queue_size=2)
-    path = AsiClothoidPath()
-    package_path = '/autorally_private_control'
-    file_name = 'CCRF_2021-01-10.npz'
-    track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
-    p_x = track_dict['X_cen_smooth']
-    p_y = track_dict['Y_cen_smooth']
-    file_name = 'ccrf_track_optimal_1000s_15m.npz'
-    track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
-    try:
-        p_x = track_dict['X_cen_smooth']
-        p_y = track_dict['Y_cen_smooth']
-    except KeyError:
-        p_x = track_dict['pts'][:, 0]
-        p_y = track_dict['pts'][:, 1]
-        rho = track_dict['curvature']
-    num_segments = len(rho)
-    for ii in range(num_segments):
-        clothoid = AsiClothoid()
-        clothoid.start_x_m = p_x[ii]
-        clothoid.start_y_m = p_y[ii]
-        clothoid.start_curvature_inv_m = rho[ii]
-        path.segments.append(clothoid)
-    path.header.stamp = rospy.Time.now()
-    time.sleep(1)
-    map_pub.publish(path)
-    time.sleep(1)
-    print('pubbed')
+        left_bound = Path()
+        right_bound = Path()
+        bound_stride = 1
+        bound_time = self.get_clock().now().to_msg()
+        for ii in range(int(self.N / bound_stride)):
+            pose_stamped = PoseStamped()
+            dists = xs[-1, ii * bound_stride] - self.s
+            mini = np.argmin(np.abs(dists))
+            p = self.ar.p[:, mini]
+            theta = np.arctan2(self.ar.dif_vecs[1, mini], self.ar.dif_vecs[0, mini])
+            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - boundary_dists[0, ii * bound_stride] * np.sin(theta)
+            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + boundary_dists[0, ii * bound_stride] * np.cos(theta)
+            pose_stamped.pose.position.z = 0.0
+            pose_stamped.pose.orientation.z = 1.0
+            # pose_stamped.header.seq = ii
+            pose_stamped.header.stamp = bound_time
+            pose_stamped.header.frame_id = 'map'
+            left_bound.poses.append(copy.deepcopy(pose_stamped))
+            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - -1*boundary_dists[1, ii * bound_stride] * np.sin(theta)
+            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + -1*boundary_dists[1, ii * bound_stride] * np.cos(theta)
+            right_bound.poses.append(pose_stamped)
+        left_bound.header.frame_id = 'map'
+        # left_bound.header.seq = 0
+        left_bound.header.stamp = bound_time
+        self.boundary_pub.publish(left_bound)
+        right_bound.header.frame_id = 'map'
+        # right_bound.header.seq = 0
+        right_bound.header.stamp = bound_time
+        self.boundary_pub.publish(right_bound)
+
+        # boundary_dists = boundary_dists[:, ::-1]
+        # print('boundary dists:', boundary_dists)
+        return boundary_dists
+
+    def obstacle_callback(self, occupancy_msg=None):
+        # np.set_printoptions(threshold=sys.maxsize)
+        occ = np.asarray(occupancy_msg.data).reshape((50, 80))
+        obs_locs_y_map, obs_locs_x_map = np.where(occ > -1)
+        obs_locs_x_car = obs_locs_x_map / 2.0 - 5.0
+        obs_locs_y_car = obs_locs_y_map / 2.0 - 12.5
+        # obs_locs_x_car = np.array([10.0, 12.0])
+        # obs_locs_y_car = np.array([14.0, 15.0])
+        # lateral_distance_grid = 14 * np.ones((60, 60))
+        # mask = np.vstack((obs_locs_y_map, obs_locs_x_map))
+        # lateral_distance_grid[mask[0, :], mask[1, :]] = obs_locs_y_car
+        # right_half = lateral_distance_grid[:30, 14:]
+        # left_half = lateral_distance_grid[30:, 14:]
+        # left_lateral_dists = np.min(np.abs(left_half), axis=0)
+        # right_lateral_dists = np.min(np.abs(right_half), axis=0)
+        # self.obs_locs = np.vstack((left_lateral_dists, right_lateral_dists))
+        obs_locs_x_cartesian = self.mapca.x + obs_locs_x_car * np.cos(self.mapca.yaw) - obs_locs_y_car * np.sin(self.mapca.yaw)
+        obs_locs_y_cartesian = self.mapca.y + obs_locs_y_car * np.cos(self.mapca.yaw) + obs_locs_x_car * np.sin(self.mapca.yaw)
+        self.obs_locs = np.vstack((obs_locs_x_cartesian, obs_locs_y_cartesian))
+        # try:
+            # print(self.x, self.y)
+            # print(obs_locs_x_car[0], obs_locs_y_car[0])
+            # print(obs_locs_x_cartesian[0], obs_locs_y_cartesian[0])
+        # except IndexError:
+        #     pass
+        # point_cloud = PointCloud()
+        # point_cloud.header.frame_id = 'map'
+        # for ii in range(len(obs_locs_x_cartesian)):
+        #     point = Point32()
+        #     point.x = obs_locs_x_cartesian[ii]
+        #     point.y = obs_locs_y_cartesian[ii]
+        #     point.z = 0.0
+        #     point_cloud.points.append(point)
+        # # channel = ChannelFloat32()
+        # # channel.name = 'intensity'
+        # # channel.values = np.ones
+        # # point_cloud.channels.append(channel)
+        # self.goal_pub.publish(point_cloud)
+        s_start, s_end, left_bound, right_bound = self.convert_obs_to_constraints()
+        print(s_start, s_end, left_bound, right_bound)
+        return
+
+
+# def map_publish():
+#     map_pub = rospy.Publisher('/path', AsiClothoidPath, queue_size=2)
+#     path = AsiClothoidPath()
+#     package_path = '/autorally_private_control'
+#     file_name = 'CCRF_2021-01-10.npz'
+#     track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
+#     p_x = track_dict['X_cen_smooth']
+#     p_y = track_dict['Y_cen_smooth']
+#     file_name = 'ccrf_track_optimal_1000s_15m.npz'
+#     track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
+#     try:
+#         p_x = track_dict['X_cen_smooth']
+#         p_y = track_dict['Y_cen_smooth']
+#     except KeyError:
+#         p_x = track_dict['pts'][:, 0]
+#         p_y = track_dict['pts'][:, 1]
+#         rho = track_dict['curvature']
+#     num_segments = len(rho)
+#     for ii in range(num_segments):
+#         clothoid = AsiClothoid()
+#         clothoid.start_x_m = p_x[ii]
+#         clothoid.start_y_m = p_y[ii]
+#         clothoid.start_curvature_inv_m = rho[ii]
+#         path.segments.append(clothoid)
+#     path.header.stamp = rospy.Time.now()
+#     time.sleep(1)
+#     map_pub.publish(path)
+#     time.sleep(1)
+#     print('pubbed')
 
 
 if __name__ == '__main__':
-    rospy.init_node('map_ca', anonymous=True)
-    map_ca = MapCA()
+    rclpy.init()
+    map_ca = Map_CA()
     # map_publish()
-    rate = rospy.Rate(1)
+    # rate = rospy.Rate(1)
     # while 1:
         # map_ca.path_pub.publish(map_ca.trajectory)
         # rate.sleep()
-    rospy.spin()
+    rclpy.spin(map_ca)
+    map_ca.destroy_node()
+    rclpy.shutdown()

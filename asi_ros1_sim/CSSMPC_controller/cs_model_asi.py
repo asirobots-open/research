@@ -17,10 +17,19 @@ class Model:
         self.vehicle_centric = vehicle_centric
         self.map_coords = map_coords
 
-        #ccrf_curv = np.load(package_path + '/src/maps/ccrf_2021/ccrf_track_optimal.npz')
-        #self.s = ccrf_curv['s']
-        #self.rho = ccrf_curv['curvature']
-        self.map_ca = polylines_asi.MapCA()
+        print('waiting for map')
+        while True:
+            try:
+                path = np.load('planned_path.npz')
+                self.s = path['s']
+                self.rho = path['rho']
+                self.p = path['p']
+                self.dif_vecs = path['dif_vecs']
+                print('loaded map')
+                break
+            except (IOError, ValueError, AttributeError) as e:
+                pass
+        # self.map_ca = polylines_asi.MapCA()
 
     def get_curvature(self, s):
         while (s > self.s[-1]).any():
@@ -138,9 +147,11 @@ class Model:
             next_state[:, 1] = vy #+ deltaT * ((fFx * sin(delta) + fFy * cos(delta) + fRy) / m_Vehicle_m - vx * wz)
             next_state[:, 2] = wz + deltaT * (V / m_Vehicle_lR * sin(beta))
             if self.map_coords:
-                dists = np.abs(Y.reshape((-1, 1)) - self.map_ca.s.reshape((1, -1)))
+                # print(Y)
+                # print(self.map_ca.s)
+                dists = np.abs(Y.reshape((-1, 1)) - self.s.reshape((1, -1)))
                 mini = np.argmin(dists, axis=1)
-                rho = self.map_ca.rho[mini]
+                rho = self.rho[mini]
                 next_state[:, 3] = psi + deltaT * (wz - (vx * cos(psi) - vy * sin(psi)) / (1 - rho * X) * rho)
                 next_state[:, 4] = X + deltaT * (vx * sin(psi) + vy * cos(psi))
                 next_state[:, 5] = Y + deltaT * (vx * cos(psi) - vy * sin(psi)) / (1 - rho * X)

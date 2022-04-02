@@ -1,21 +1,23 @@
-<package>
+<package format="3">
   <name>asi_msgs</name>
   <version>0.1.1</version>
-  <description>All custom messages for packages in the autorally_private metapackage</description>
-  <maintainer email="bgoldfain3@gatech.edu">Brian Goldfain</maintainer>
-
+  <description>All custom messages used for interfacing between ASI and GT</description>
+  <maintainer email="jacobk@gatech.edu">Jacob Knaup</maintainer>
   <license>BSD</license>
+  <author>Jacob Knaup</author>
 
-  <url type="website">http://ros.org/wiki/auto_rally</url>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <author>Brian Goldfain</author>
+  <build_depend>builtin_interfaces</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>builtin_interfaces</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
-  <build_depend>genmsg</build_depend>
-  <build_depend>std_msgs</build_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
-  <run_depend>genmsg</run_depend>
-  <run_depend>std_msgs</run_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 
 </package>
