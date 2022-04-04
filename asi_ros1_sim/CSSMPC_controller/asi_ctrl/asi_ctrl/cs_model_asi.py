@@ -1,9 +1,10 @@
+import time
 import numpy as np
 from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, zeros_like, abs, pi
 #import torch
 #import throttle_model
 #import rospkg
-import polylines_asi
+# import polylines_asi
 
 
 class Model:
@@ -27,7 +28,8 @@ class Model:
                 self.dif_vecs = path['dif_vecs']
                 print('loaded map')
                 break
-            except (IOError, ValueError, AttributeError) as e:
+            except:
+                time.sleep(0.1)
                 pass
         # self.map_ca = polylines_asi.MapCA()
 
@@ -81,7 +83,7 @@ class Model:
         # delta = input[:, 0]
         steering = input[:, 0]
         delta = m_Vehicle_kSteering * steering + m_Vehicle_cSteering
-        T = np.maximum(input[:, 1], 0)
+        T = input[:, 1]#np.maximum(input[:, 1], 0)
 
         min_velo = 0.1
         deltaT = 0.01

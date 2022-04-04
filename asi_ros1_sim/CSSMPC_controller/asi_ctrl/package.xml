@@ -1,0 +1,16 @@
+<package format="3">
+  <name>asi_ctrl</name>
+  <version>0.1.1</version>
+  <description>Controller developed by GT for controlling ASI vehicle</description>
+  <maintainer email="jacobk@gatech.edu">Jacob Knaup</maintainer>
+  <license>BSD</license>
+  <author>Jacob Knaup</author>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+  <depend>rclpy</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>

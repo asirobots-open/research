@@ -4,13 +4,14 @@ import time
 #import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 import copy
-import cs_model_asi as cs_model
-import cs_solver_obstacle as cs_solver
+from asi_ctrl import cs_model_asi as cs_model
+from asi_ctrl import cs_solver_obstacle as cs_solver
 import rclpy
 import rclpy.node
 from nav_msgs.msg import Odometry, OccupancyGrid, Path
 from geometry_msgs.msg import PoseStamped, PointStamped, Point32
 from sensor_msgs.msg import PointCloud, ChannelFloat32
+from rcl_interfaces.msg import SetParametersResult
 from asi_msgs.msg import AsiTBSG
 import rospkg
 # import roslib
@@ -19,34 +20,74 @@ import rospkg
 #from autorally_private_control.cfg import CSSMPC_paramsConfig
 #from autorally_msgs.msg import runstop
 from asi_msgs.msg import MapCA
-import polylines_asi
+from asi_ctrl import polylines_asi
 
 
 class CS_SMPC(rclpy.node.Node):
     def __init__(self):
         super().__init__('CSSMPC')
-        # rospy.init_node('CSSMPC', anonymous=True)
         self.command_pub = self.create_publisher(AsiTBSG, "/ius0/vcu_wrench", 1)
-        # self.runstop_pub = rospy.Publisher("/LTVMPC/runstop", runstop, queue_size=10)
         self.path_pub = self.create_publisher(Path, "/trajectory", 1)
-        self.goal_pub = self.create_publisher(PointCloud, "/goal", 1)
+        # self.goal_pub = self.create_publisher(PointCloud, "/goal", 1)
         # self.boundary_pub = self.create_publisher(Path, "/boundaries", 2)
         self.chassis_command = AsiTBSG()
         self.begin = 0
 
+        self.declare_parameter('max_speed', 5.0)
+        self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
+        self.declare_parameter('terminal_speed', -1.0)
+        self.terminal_speed = self.get_parameter('terminal_speed').get_parameter_value().double_value
+        self.declare_parameter('horizon_length', 20)
+        horizon_length = self.get_parameter('horizon_length').get_parameter_value().integer_value
+        self.declare_parameter('time_step', 0.1)
+        time_step = self.get_parameter('time_step').get_parameter_value().double_value
+        self.declare_parameter('throttle_min', -0.2)
+        throttle_min = self.get_parameter('throttle_min').get_parameter_value().double_value
+        self.declare_parameter('throttle_max', 0.4)
+        throttle_max = self.get_parameter('throttle_max').get_parameter_value().double_value
+        self.declare_parameter('delta_steer_min', -0.3)
+        delta_steer_min = self.get_parameter('delta_steer_min').get_parameter_value().double_value
+        self.declare_parameter('delta_steer_max', 0.3)
+        delta_steer_max = self.get_parameter('delta_steer_max').get_parameter_value().double_value
+        self.declare_parameter('delta_throttle_min', -0.20)
+        delta_throttle_min = self.get_parameter('delta_throttle_min').get_parameter_value().double_value
+        self.declare_parameter('delta_throttle_max', 0.05)
+        delta_throttle_max = self.get_parameter('delta_throttle_max').get_parameter_value().double_value
+        self.declare_parameter('Q_speed', 10.0)
+        Q_speed = self.get_parameter('Q_speed').get_parameter_value().double_value
+        self.declare_parameter('Q_heading', 300.0)
+        Q_heading = self.get_parameter('Q_heading').get_parameter_value().double_value
+        self.declare_parameter('Q_lateral', 30.0)
+        Q_lateral = self.get_parameter('Q_lateral').get_parameter_value().double_value
+        self.declare_parameter('QN_speed', 0.0)
+        QN_speed = self.get_parameter('QN_speed').get_parameter_value().double_value
+        self.declare_parameter('QN_heading', Q_heading * horizon_length)
+        QN_heading = self.get_parameter('QN_heading').get_parameter_value().double_value
+        self.declare_parameter('QN_lateral', max(Q_heading, Q_lateral) * horizon_length)
+        QN_lateral = self.get_parameter('QN_lateral').get_parameter_value().double_value
+        self.declare_parameter('R_steer', 2.0)
+        R_steer = self.get_parameter('R_steer').get_parameter_value().double_value
+        self.declare_parameter('R_throttle', 2.0)
+        R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
+        self.create_timer(1.0, self.dynamic_reconfigure)
+
         self.n = 6
         self.m = 2
         self.l = 6
-        self.N = 20
-        self.dt_linearization = 0.10
+        self.N = horizon_length
+        self.dt_linearization = time_step
         self.dt_solve = 0.10
 
-        self.target_speed = 7
+        self.target_speed = 5
         self.x_target = np.tile(np.array([self.target_speed, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N - 1, 1))
-        self.x_target = np.vstack((self.x_target, np.array([2, 0, 0, 0, 0, 0]).reshape((-1, 1))))
+        if self.terminal_speed < 0.0:
+            terminal_speed = self.target_speed
+        else:
+            terminal_speed = self.terminal_speed
+        self.x_target = np.vstack((self.x_target, np.array([terminal_speed, 0, 0, 0, 0, 0]).reshape((-1, 1))))
         self.mu_N = 10000 * np.array([5., 2., 4., 4., 4., 300.]).reshape((-1, 1))
-        self.v_range = np.array([[-1.0, 1.0], [-0.2, 1.0]])
-        self.slew_rate = np.array([[-0.3, 0.3], [-0.20, 0.05]])
+        self.v_range = np.array([[-1.0, 1.0], [throttle_min, throttle_max]])
+        self.slew_rate = np.array([[delta_steer_min, delta_steer_max], [delta_throttle_min, delta_throttle_max]])
         self.prob_lvl = 0.6
         self.load_k = 0
         self.track_w = 9999.0
@@ -73,21 +114,21 @@ class CS_SMPC(rclpy.node.Node):
             # self.solver.M.setSolverParam("mioTolFeas", 1.0e-3)
 
         Q = np.zeros((self.n, self.n))
-        Q[0, 0] = 10.0
+        Q[0, 0] = Q_speed
         Q[1, 1] = 0.0
         Q[2, 2] = 0.0
-        Q[3, 3] = 300.0
-        Q[4, 4] = 30.0
+        Q[3, 3] = Q_heading
+        Q[4, 4] = Q_lateral
         self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
         # self.Q_bar[-8, -8] = 30
         # self.Q_bar[-7, -7] = 1000
-        # Q_bar[-6, -6] = 100
-        self.Q_bar[-3, -3] = 300*self.N
-        self.Q_bar[-2, -2] = 300*self.N
+        self.Q_bar[-6, -6] = QN_speed
+        self.Q_bar[-3, -3] = QN_heading
+        self.Q_bar[-2, -2] = QN_lateral
         self.Q_bar[-1, -1] = 0.0
         R = np.zeros((self.m, self.m))
-        R[0, 0] = 2.0  # 2
-        R[1, 1] = 2.0 # 1
+        R[0, 0] = R_steer  # 2
+        R[1, 1] = R_throttle # 1
         self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
 
         self.state = np.zeros((self.n, 1))  # np.array([5, 0, 0, 50, 50, 0, 0, 0])
@@ -101,36 +142,32 @@ class CS_SMPC(rclpy.node.Node):
         self.get_logger().info('subscribed to map odom')
         # self.create_subscription(OccupancyGrid, "/ius0/terrain_cost", self.obstacle_callback, 1)
 
-    # def dynamic_reconfigure(self, config, level):
-    #     self.N = config["N"]
-    #     self.target_speed = config["speed"]
-    #     self.x_target = np.tile(np.array([self.target_speed, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N - 1, 1))
-    #     self.x_target = np.vstack((self.x_target, np.array([2, 0, 0, 0, 0, 0, 0, 0]).reshape((-1, 1))))
-    #     self.v_range = np.array([[config["steer_min"], config["steer_max"]], [config["throttle_min"], config["throttle_max"]]])
-    #     self.slew_rate = np.array([[config["steer_rate_min"], config["steer_rate_max"]], [config["throttle_rate_min"], config["throttle_rate_max"]]])
-    #     self.prob_lvl = config["prob_lvl"]
-    #     self.load_k = config["load_k"]
-    #     self.track_w = config["track_w"]
-    #
-    #     Q = np.zeros((self.n, self.n))
-    #     Q[0, 0] = config["Q_vx"]
-    #     Q[1, 1] = config["Q_vy"]
-    #     Q[2, 2] = config["Q_psidot"]
-    #     Q[5, 5] = config["Q_psi"]
-    #     Q[6, 6] = config["Q_ey"]
-    #     Q[7, 7] = config["Q_s"]
-    #     self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
-    #     self.Q_bar[-8, -8] = config["QN_vx"]
-    #     self.Q_bar[-7, -7] = config["QN_vy"]
-    #     self.Q_bar[-6, -6] = config["QN_psidot"]
-    #     self.Q_bar[-3, -3] = config["QN_epsi"]
-    #     self.Q_bar[-2, -2] = config["QN_ey"]
-    #     self.Q_bar[-1, -1] = config["QN_s"]
-    #     R = np.zeros((self.m, self.m))
-    #     R[0, 0] = config["R_delta"]
-    #     R[1, 1] = config["R_T"]
-    #     self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
-    #     return config
+    def dynamic_reconfigure(self):
+        self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
+        self.terminal_speed = self.get_parameter('terminal_speed').get_parameter_value().double_value
+        Q_speed = self.get_parameter('Q_speed').get_parameter_value().double_value
+        Q_heading = self.get_parameter('Q_heading').get_parameter_value().double_value
+        Q_lateral = self.get_parameter('Q_lateral').get_parameter_value().double_value
+        QN_speed = self.get_parameter('QN_speed').get_parameter_value().double_value
+        QN_heading = self.get_parameter('QN_heading').get_parameter_value().double_value
+        QN_lateral = self.get_parameter('QN_lateral').get_parameter_value().double_value
+        R_steer = self.get_parameter('R_steer').get_parameter_value().double_value
+        R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
+
+        Q = np.zeros((self.n, self.n))
+        Q[0, 0] = Q_speed
+        Q[1, 1] = 0.0
+        Q[2, 2] = 0.0
+        Q[3, 3] = Q_heading
+        Q[4, 4] = Q_lateral
+        self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
+        self.Q_bar[-6, -6] = QN_speed
+        self.Q_bar[-3, -3] = QN_heading
+        self.Q_bar[-2, -2] = QN_lateral
+        R = np.zeros((self.m, self.m))
+        R[0, 0] = R_steer  # 2
+        R[1, 1] = R_throttle  # 1
+        self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
 
     def odom_callback(self, map_msg):
         # self.get_logger().info('map odom received')
@@ -164,7 +201,14 @@ class CS_SMPC(rclpy.node.Node):
         self.y = map_msg.y
         self.yaw = map_msg.yaw
         self.target_speed = map_msg.speed
-        self.x_target = np.tile(np.array([self.target_speed - 0.0, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N, 1))
+        self.target_speed = min(self.target_speed, self.max_speed)
+        print('target speed: ', self.target_speed)
+        self.x_target = np.tile(np.array([self.target_speed, 0, 0, 0, 0, 0]).reshape((-1, 1)), (self.N - 1, 1))
+        if self.terminal_speed < 0.0:
+            terminal_speed = self.target_speed
+        else:
+            terminal_speed = self.terminal_speed
+        self.x_target = np.vstack((self.x_target, np.array([terminal_speed, 0, 0, 0, 0, 0]).reshape((-1, 1))))
         self.state = np.array([vx, vy, wz, epsi, ey, s]).reshape((-1, 1))
         print('state', self.state)
         self.begin = 1
@@ -231,10 +275,10 @@ class CS_SMPC(rclpy.node.Node):
             # print(x_0, us, xs)
         return xs
 
-    def update_target_speed(self, xs):
-        rhos = np.abs(self.ar.get_curvature(xs[7, 1:]))
-        target_speeds = self.target_speed - rhos / 0.6 * (self.target_speed - 2)
-        self.x_target[0:-self.n:self.n, 0] = target_speeds
+    # def update_target_speed(self, xs):
+    #     rhos = np.abs(self.ar.get_curvature(xs[7, 1:]))
+    #     target_speeds = self.target_speed - rhos / 0.6 * (self.target_speed - 2)
+    #     self.x_target[0:-self.n:self.n, 0] = target_speeds
 
     def convert_obs_to_constraints(self, xs):
         ceiling = 20.0
@@ -512,14 +556,14 @@ class CS_SMPC(rclpy.node.Node):
             # linearization_step_rate.sleep()
 
 
-if __name__ == '__main__':
+def main(args=None):
     print('starting controller')
-    rclpy.init()
+    rclpy.init(args=args)
     controller = CS_SMPC()
     controller.get_logger().info('subscribed to map odom')
     rate = controller.create_rate(0.1)
     # controller.ltv_solver = cs_solver.CSSolver(controller.n, controller.m, controller.l, controller.N, controller.u_min, controller.u_max, mean_only=True)
-    num_steps_applied = 1#int(controller.dt_solve / controller.dt_linearization)
+    num_steps_applied = 1  # int(controller.dt_solve / controller.dt_linearization)
     # solver_io = Queue(maxsize=1)
     # ltv_io = MQ()
     dt_control = controller.dt_solve
@@ -527,8 +571,8 @@ if __name__ == '__main__':
     # linearization_step_rate = rospy.Rate(1/controller.dt_linearization)
     us = np.tile(np.array([0.0, 0.02]).reshape((-1, 1)), (1, controller.N))
 
-    ks = np.zeros((2*10, 8*10, 25*20))
-    ss = np.zeros((8, 25*20))
+    ks = np.zeros((2 * 10, 8 * 10, 25 * 20))
+    ss = np.zeros((8, 25 * 20))
     iii = 0
     if controller.load_k:
         rospack = rospkg.RosPack()
@@ -565,3 +609,7 @@ if __name__ == '__main__':
     rclpy.spin(controller)
     controller.destroy_node()
     rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

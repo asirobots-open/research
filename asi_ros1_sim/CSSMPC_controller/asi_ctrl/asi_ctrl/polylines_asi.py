@@ -25,6 +25,9 @@ class Map_CA(rclpy.node.Node):
                                             reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
         self.create_subscription(AsiClothoidPath, "/ius0/planned_path", self.path_cb, latching_qos)
         self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
+        self.declare_parameter('num_smoothed_path_points', 500)
+        self.num_smoothed_path_points =  self.get_parameter('num_smoothed_path_points').get_parameter_value().integer_value
+
         # rospack = rospkg.RosPack()
         # # package_path = rospack.get_path('autorally_private_control')
         # package_path = '/home/user/catkin_ws/src/autorally_private/autorally_private_control'
@@ -55,6 +58,7 @@ class Map_CA(rclpy.node.Node):
         self.speeds = np.empty(())
         self.curvatures = np.empty(())
         self.mapca = MapCA()
+        self.start = False
 
         self.wf = 0.1
         self.wr = 0.1
@@ -145,6 +149,8 @@ class Map_CA(rclpy.node.Node):
         return head_dist, norm_dist, s_dist, speed
 
     def odom_cb(self, odom):
+        if not self.start:
+            return
         # self.get_logger().info('odom received')
         # start = time.time()
         x = odom.pose.pose.position.x
@@ -179,9 +185,9 @@ class Map_CA(rclpy.node.Node):
 
         # print(time.time() - start)
 
-    def wheel_cb(self, speeds):
-        self.wf = (speeds.lfSpeed + speeds.rfSpeed) / 2.0
-        self.wr = (speeds.lbSpeed + speeds.rbSpeed) / 2.0
+    # def wheel_cb(self, speeds):
+    #     self.wf = (speeds.lfSpeed + speeds.rfSpeed) / 2.0
+    #     self.wr = (speeds.lbSpeed + speeds.rbSpeed) / 2.0
 
     def path_cb(self, path):
         self.get_logger().info("received path")
@@ -220,7 +226,7 @@ class Map_CA(rclpy.node.Node):
         closed_ps = np.append(self.p, self.p[:, 0:1], axis=1)
         closed_speeds = np.append(self.p_speeds, self.p_speeds[:, 0:1], axis=1)
         tck, u = scipy.interpolate.splprep(np.vstack((closed_ps, closed_speeds)), u=None, s=0.0, per=1)
-        num_steps = 500
+        num_steps = self.num_smoothed_path_points
         u_new = np.linspace(u.min(), u.max(), num_steps)
         x_new, y_new, speed_new = scipy.interpolate.splev(u_new, tck, der=0)
         dx, dy, _ = scipy.interpolate.splev(u_new, tck, der=1)
@@ -258,6 +264,7 @@ class Map_CA(rclpy.node.Node):
         self.trajectory = trajectory
         np.savez('planned_path.npz', s=self.s, rho=self.rho, p=self.p, dif_vecs=self.dif_vecs)
         self.get_logger().info('saving to ' + str(os.getcwd()))
+        self.start = True
         return p_curvature, p_speed, self.s
 
     def convert_obs_to_constraints(self):
@@ -396,14 +403,13 @@ class Map_CA(rclpy.node.Node):
 #     print('pubbed')
 
 
-if __name__ == '__main__':
+def main():
     rclpy.init()
     map_ca = Map_CA()
-    # map_publish()
-    # rate = rospy.Rate(1)
-    # while 1:
-        # map_ca.path_pub.publish(map_ca.trajectory)
-        # rate.sleep()
     rclpy.spin(map_ca)
     map_ca.destroy_node()
     rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

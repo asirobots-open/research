@@ -8,7 +8,7 @@ import time
 
 
 class CSSolver:
-    def __init__(self, n, m, l, N, v_range, slew_rate, obstacles, mean_only=False, k_form=0, prob_lvl=0.95, chance_const_N=-1, boundary_dim=-2, delta_slew_cost=50):
+    def __init__(self, n, m, l, N, v_range, slew_rate, obstacles, mean_only=False, k_form=0, prob_lvl=0.95, chance_const_N=-1, boundary_dim=-2, delta_slew_cost=1.0):
         try:
             M = Model()
             self.n = n
