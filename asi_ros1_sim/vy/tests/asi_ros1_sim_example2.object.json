@@ -2,6 +2,7 @@
   "data": {
     "map":"object:empty_map",
     "obstacles": "50,0,5; 50,50,5",
+    "grid_parameters":"boring_grid_inertial.yml",
     "viapoints": "",
     "path":{
       "segments": [

@@ -1,5 +1,5 @@
-FROM asirobots/asi_ros2_sim:0.0.2
-# FROM asirobots-car_sim_ros2
+# FROM asirobots/asi_ros2_sim:0.0.2
+FROM asirobots-car_sim_ros2
 
 COPY ros2/src /ros2_ws/src
 WORKDIR /ros2_ws

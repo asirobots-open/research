@@ -28,6 +28,7 @@ class BoringGrid(Node):
         self.simtimer = self.create_timer(timer_period, self.publish)
         self.new_odometry = False
 
+        self.declare_parameter('inertial_frame', False)
         self.declare_parameter('front_cells', 100)
         self.declare_parameter('width_cells', 100)
         self.declare_parameter('back_cells', 10)
@@ -35,24 +36,37 @@ class BoringGrid(Node):
         self.xpos = 0
         self.ypos = 0
         self.heading = 0
+        self.inertial_frame = self.get_parameter('inertial_frame').get_parameter_value().bool_value
         front_cells = max(10,self.get_parameter('front_cells').get_parameter_value().integer_value)
         width_cells = max(10,self.get_parameter('width_cells').get_parameter_value().integer_value)
         back_cells = max(0,self.get_parameter('back_cells').get_parameter_value().integer_value)
         ns = self.get_namespace()
         self.occ_grid = OccupancyGrid()
-        self.occ_grid.header.frame_id = "{}/base_link".format(ns if len(ns) > 1 else "")
+        self.occ_grid.header.frame_id = "/map" if self.inertial_frame else "{}/base_link".format(ns if len(ns) > 1 else "")
         self.occ_grid.info.resolution = self.get_parameter('grid_resolution').get_parameter_value().double_value
         self.occ_grid.info.width = front_cells + back_cells
         self.occ_grid.info.height = width_cells
-        self.occ_grid.info.origin.position.x = -self.occ_grid.info.resolution*back_cells
-        self.occ_grid.info.origin.position.y = -self.occ_grid.info.resolution*width_cells/2
+        self.grid_origin_x = -self.occ_grid.info.resolution*back_cells
+        self.grid_origin_y = -self.occ_grid.info.resolution*width_cells/2
+        self.update_position(0,0)
         self.occ_grid.data =  [self.empty_value] * self.occ_grid.info.width * self.occ_grid.info.height
+
+    def update_position(self,x,y):
+        self.occ_grid.info.origin.position.x = x + self.grid_origin_x
+        self.occ_grid.info.origin.position.y = y + self.grid_origin_y
 
     def read_calibration(self,calibration_file):
         # Create a default path,
         try: # Try to read from calibration file specified in arguments
           with open(calibration_file,'r') as r:
             x = json.loads(r.read())
+            try:
+                for obst in x.get('obstacles','').strip().split(';'):
+                    prms = [float(p) for p in obst.strip().split(',')]
+                    if len(prms) == 3:
+                        self.circles.append({'x':prms[0],'y':prms[1],'r':prms[2]})
+            except Exception as exc:
+                print(exc)
             self.shapes = x.get('map',{}).get('shapes',[])
         except Exception as exc:
           self.get_logger().info('Failed to parse calibration file {}'.format(exc))
@@ -65,8 +79,8 @@ class BoringGrid(Node):
             for circle in self.circles:
                 xx = circle['x'] - self.xpos
                 yy = circle['y'] - self.ypos
-                x = cq*xx - sq*yy - self.occ_grid.info.origin.position.x
-                y = sq*xx + cq*yy - self.occ_grid.info.origin.position.y
+                x = cq*xx - sq*yy - self.grid_origin_x
+                y = sq*xx + cq*yy - self.grid_origin_y
                 self.add_with_radius(x, y, circle['r'])
 
             for shp in self.shapes:
@@ -85,7 +99,11 @@ class BoringGrid(Node):
         euler = tf_transformations.euler_from_quaternion([o_q.x, o_q.y, o_q.z, o_q.w])
         self.xpos = msg.pose.pose.position.x
         self.ypos = msg.pose.pose.position.y
-        self.heading = euler[2]
+        if self.inertial_frame:
+            self.update_position(self.xpos, self.ypos)
+            self.heading = 0
+        else:
+            self.heading = euler[2]
         self.new_odometry = True
 
     def add_with_radius(self, x, y, r):
@@ -194,8 +212,8 @@ class BoringGrid(Node):
         dx = x-self.xpos
         dy = y-self.ypos
         return {
-            'x':cq*dx - sq*dy - self.occ_grid.info.origin.position.x,
-            'y':sq*dx + cq*dy - self.occ_grid.info.origin.position.y
+            'x':cq*dx - sq*dy - self.grid_origin_x,
+            'y':sq*dx + cq*dy - self.grid_origin_y
         }
 
 
