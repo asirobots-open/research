@@ -1,7 +1,7 @@
 x-vy:
   anchors:
     CONTROLLERIMAGE: stage:controller2
-    PARAMSIMAGE: stage:params
+    PARAMS: vydir:asi_ros1_sim
   subcompose:
     - name: compose:asi_ros2_sim
   
@@ -24,7 +24,7 @@ services:
       ROS_MASTER_URI: http://localhost:11311
     volumes:
       - read_only: true
-        source: /home/user/asi-research/asi_ros1_sim/vy/cssmpc_configs/default_params.yaml
+        source: $PARAMS/vy/cssmpc_configs/default_params.yaml
         target: /ros2_ws/cssmpc_configs/default_params.yaml
         type: bind
   simulator:
