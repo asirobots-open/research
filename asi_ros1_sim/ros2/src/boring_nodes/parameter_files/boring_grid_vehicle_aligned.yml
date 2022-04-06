@@ -1,0 +1,7 @@
+/**:
+  ros__parameters:
+    width_cells: 50
+    front_cells: 70
+    back_cells: 10
+    inertial_frame: false
+  

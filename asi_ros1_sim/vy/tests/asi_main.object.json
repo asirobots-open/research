@@ -2,6 +2,7 @@
   "data": {
     "map":"object:asi_main_figure_8_map",
     "obstacles": "-170,120, 2",
+    "grid_parameters":"boring_grid_inertial.yml",
     "viapoints": "",
     "path": "object:asi_main_path",
     "namespace": "ius0",

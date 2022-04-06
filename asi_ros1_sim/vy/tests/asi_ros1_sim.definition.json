@@ -5,6 +5,10 @@
       "type": "string"
     },
     {
+      "name": "grid_parameters",
+      "type": "string"
+    },
+    {
       "name": "map",
       "type": "definition:map2d"
     },

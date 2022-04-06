@@ -10,7 +10,7 @@ services:
   grid:
     command: >-
       bash -c ". /opt/ros/$$ROS2/setup.bash && . install/setup.bash && 
-        ros2 run boring_nodes boring_grid --ros-args -r __ns:=/${CALIBRATION.namespace} -p calibration_file:=/calibration.json -p width_cells:=50 -p front_cells:=70 -p back_cells:=10"
+        ros2 run boring_nodes boring_grid --ros-args -r __ns:=/${CALIBRATION.namespace} -p calibration_file:=/calibration.json --params-file ./install/boring_nodes/share/boring_nodes/parameter_files/${CALIBRATION.grid_parameters}"
     image: $BORINGNODES
     volumes:
       - read_only: true

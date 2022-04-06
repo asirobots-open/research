@@ -2,6 +2,7 @@
   "data": {
     "map":"object:empty_map",
     "obstacles": "50,0,5; 30,40,5",
+    "grid_parameters":"boring_grid_inertial.yml",
     "viapoints": "0,0,2; 10,10,2; 10,20,2; 20,20,2; 30,30,3; 40,40,5; 50,50,7; 60,60,7; 70,70,5; 80,70,5; 100,70,7; 120,70,10; 120,0,10",
     "path": {"segments":[]},
     "namespace": "ius0",
