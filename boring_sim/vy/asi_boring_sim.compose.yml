@@ -1,0 +1,25 @@
+x-vy:
+  anchors:
+    DR: argument:Debug
+    ROS2: argument:foxy
+    CALIBRATION: definition:asi_boring_sim
+    BORINGNODES: stage:asi_boring_sim
+    RVIZFILES: vydir:boring_sim
+    BAGFILE: directory:./bags
+
+services:
+  nodes:
+    command: >-
+      bash -c ". /opt/ros/$ROS2/setup.bash && . install/setup.bash && (xterm &
+        python3 ./install/share/boring_nodes/launch/ackermann_sim_launch.py /calibration.json &
+        rviz2 -d /rviz/asi_partners_sim_ros2.rviz)"
+    image: $BORINGNODES
+    privileged: true
+    environment:
+      DISPLAY: $DISPLAY
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${RVIZFILES}/rviz:/rviz
+      - $CALIBRATION>calibration.json:/calibration.json:ro
+
+version: '3.2'

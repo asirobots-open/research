@@ -1,0 +1,24 @@
+{
+  "data": {
+    "map":"object:asi_main_figure_8_map",
+    "obstacles": "-120,10, 2",
+    "ros2_parameters":"boring_grid_inertial.yml,figure_8.yml",
+    "viapoints": "",
+    "path": "object:asi_figure8_path",
+    "namespace": "",
+    "nodes": "boring_grid,boring_tfpub,boring_planner,boring_controller,boring_ackermann",
+    "license_server": "surfacesim",
+    "comment": "SET license_server to carsim license server (e.g. 10.10.100.26:27003) or to 'surfacesim'",
+    "features": {
+      "radial_plateau": [
+      ],
+      "linear_plateau": [
+      ],
+      "sine":[
+      ],
+      "plane":[
+      ]
+    }
+  },
+  "definition": "definition:asi_boring_sim"
+}

@@ -1,0 +1,6 @@
+/**:
+  ros__parameters:
+    x: -101.0
+    y: 26.0
+    heading: 150.0
+    stop_time: 120.0

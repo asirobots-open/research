@@ -1,0 +1,24 @@
+{
+  "data": {
+    "map":"object:asi_mining_loop_map",
+    "obstacles": "-65,-172, 1",
+    "ros2_parameters":"boring_grid_inertial.yml,mining_loop.yml",
+    "viapoints": "",
+    "path": "object:asi_mining_loop_path",
+    "namespace": "ius0",
+    "nodes": "boring_grid,boring_tfpub,boring_planner,boring_controller,boring_ackermann",
+    "license_server": "surfacesim",
+    "comment": "SET license_server to carsim license server (e.g. 10.10.100.26:27003) or to 'surfacesim'",
+    "features": {
+      "radial_plateau": [
+      ],
+      "linear_plateau": [
+      ],
+      "sine":[
+      ],
+      "plane":[
+      ]
+    }
+  },
+  "definition": "definition:asi_boring_sim"
+}

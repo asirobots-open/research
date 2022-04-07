@@ -1,0 +1,40 @@
+{
+  "element": [
+    {
+      "name": "features",
+      "type": "definition:SurfaceSimFeatures"
+    },
+    {
+      "name": "license_server",
+      "type": "string"
+    },
+    {
+      "name": "map",
+      "type": "definition:map2d"
+    },
+    {
+      "name": "namespace",
+      "type": "string"
+    },
+    {
+      "name": "nodes",
+      "type": "string"
+    },
+    {
+      "name": "obstacles",
+      "type": "string"
+    },
+    {
+      "name": "path",
+      "type": "definition:clothoid_path"
+    },
+    {
+      "name": "ros2_parameters",
+      "type": "string"
+    },
+    {
+      "name": "viapoints",
+      "type": "string"
+    }
+  ]
+}
