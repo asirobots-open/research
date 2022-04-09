@@ -15,6 +15,7 @@ from scipy.spatial.transform import Rotation
 from asi_msgs.msg import MapCA
 from asi_msgs.msg import AsiClothoidPath
 from asi_msgs.msg import AsiClothoid
+from asi_msgs.msg import MapBounds
 import rospkg
 
 
@@ -90,6 +91,7 @@ class Map_CA(rclpy.node.Node):
         self.mapca_pub = self.create_publisher(MapCA, '/MAP_CA/mapCA', 10)
         self.create_subscription(OccupancyGrid, "/ius0/terrain_cost", self.obstacle_callback, 1)
         self.boundary_pub = self.create_publisher(Path, "/boundaries", 10)
+        self.bounds_array_pub = self.create_publisher(MapBounds, "/bounds_array", 2)
 
     def localize(self, M, psi):
         # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)
@@ -384,7 +386,7 @@ class Map_CA(rclpy.node.Node):
         else:
             obs_locs_x_cartesian = self.mapca.x + obs_locs_x_car.copy()
             obs_locs_y_cartesian = self.mapca.y + obs_locs_y_car.copy()
-        self.get_logger().info(str(obs_locs_y_cartesian))
+        # self.get_logger().info(str(obs_locs_y_cartesian))
         obs_locs = np.vstack((obs_locs_x_cartesian, obs_locs_y_cartesian))
         # try:
             # print(self.x, self.y)
@@ -405,9 +407,14 @@ class Map_CA(rclpy.node.Node):
         # # channel.values = np.ones
         # # point_cloud.channels.append(channel)
         # self.goal_pub.publish(point_cloud)
-        self.convert_obs_to_constraints(obs_locs)
-        # s_start, s_end, left_bound, right_bound = self.convert_obs_to_constraints(obs_locs)
-        # print(s_start, s_end, left_bound, right_bound)
+        boundary_dists = self.convert_obs_to_constraints(obs_locs)
+        bounds_msg = MapBounds()
+        data0 = boundary_dists.astype('float64').tolist()[0]
+        data1 = boundary_dists.astype('float64').tolist()[1]
+        data = data0 + data1
+        # self.get_logger().info(data)
+        bounds_msg.array.data = data
+        self.bounds_array_pub.publish(bounds_msg)
         return
 
 

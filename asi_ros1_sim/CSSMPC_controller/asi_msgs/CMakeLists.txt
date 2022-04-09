@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   msg/AsiTBSG.msg
   msg/AsiClothoidPath.msg
   msg/AsiClothoid.msg
+  msg/MapBounds.msg
   DEPENDENCIES builtin_interfaces std_msgs
 )
 
