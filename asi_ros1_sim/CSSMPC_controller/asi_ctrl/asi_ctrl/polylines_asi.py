@@ -29,6 +29,22 @@ class Map_CA(rclpy.node.Node):
         self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
         self.declare_parameter('num_smoothed_path_points', 500)
         self.num_smoothed_path_points =  self.get_parameter('num_smoothed_path_points').get_parameter_value().integer_value
+        self.declare_parameter('width_cells', 120)
+        self.width_cells = self.get_parameter('width_cells').get_parameter_value().integer_value
+        self.declare_parameter('front_cells', 60)
+        self.front_cells = self.get_parameter('front_cells').get_parameter_value().integer_value
+        self.declare_parameter('back_cells', 120)
+        self.back_cells = self.get_parameter('back_cells').get_parameter_value().integer_value
+        self.declare_parameter('grid_resolution', 0.25)
+        self.grid_resolution = self.get_parameter('grid_resolution').get_parameter_value().double_value
+        self.declare_parameter('inertial_frame', False)
+        self.inertial_frame = self.get_parameter('inertial_frame').get_parameter_value().bool_value
+        self.declare_parameter('bound_celing', 20.0)
+        self.bound_celing = self.get_parameter('bound_celing').get_parameter_value().double_value
+        self.declare_parameter('bound_length', 25.0)
+        self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
+        self.declare_parameter('bound_stride', 1.0)
+        self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
 
         # rospack = rospkg.RosPack()
         # # package_path = rospack.get_path('autorally_private_control')
@@ -270,9 +286,9 @@ class Map_CA(rclpy.node.Node):
         return p_curvature, p_speed, self.s
 
     def convert_obs_to_constraints(self, obs_locs):
-        ceiling = 20.0
-        bound_length = 25.0
-        bound_stride = 1.0
+        ceiling = self.bound_celing
+        bound_length = self.bound_length
+        bound_stride = self.bound_stride
         boundary_dists = ceiling * np.ones((2, int(bound_length / bound_stride)))
         # boundary_dists = ceiling * np.ones((2, self.N))
         try:
@@ -345,12 +361,12 @@ class Map_CA(rclpy.node.Node):
 
     def obstacle_callback(self, occupancy_msg=None):
         np.set_printoptions(threshold=sys.maxsize)
-        occ = np.asarray(occupancy_msg.data).reshape((80, 120))
+        occ = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
         # print(occ)
         # self.get_logger().info(str(occ))
         obs_locs_y_map, obs_locs_x_map = np.where(occ < 1.0)
-        obs_locs_x_car = obs_locs_x_map / 4.0 - 10.0 / 4.0
-        obs_locs_y_car = obs_locs_y_map / 4.0 - 80.0 / 2.0 / 4.0
+        obs_locs_x_car = obs_locs_x_map * self.grid_resolution - self.back_cells * self.grid_resolution
+        obs_locs_y_car = obs_locs_y_map * self.grid_resolution - self.width_cells / 2.0 * self.grid_resolution
         # self.get_logger().info(str(obs_locs_y_car))
         # obs_locs_x_car = np.array([10.0, 12.0])
         # obs_locs_y_car = np.array([14.0, 15.0])
@@ -362,8 +378,13 @@ class Map_CA(rclpy.node.Node):
         # left_lateral_dists = np.min(np.abs(left_half), axis=0)
         # right_lateral_dists = np.min(np.abs(right_half), axis=0)
         # self.obs_locs = np.vstack((left_lateral_dists, right_lateral_dists))
-        obs_locs_x_cartesian = self.mapca.x + obs_locs_x_car * np.cos(self.mapca.yaw) - obs_locs_y_car * np.sin(self.mapca.yaw)
-        obs_locs_y_cartesian = self.mapca.y + obs_locs_y_car * np.cos(self.mapca.yaw) + obs_locs_x_car * np.sin(self.mapca.yaw)
+        if not self.inertial_frame:
+            obs_locs_x_cartesian = self.mapca.x + obs_locs_x_car * np.cos(self.mapca.yaw) - obs_locs_y_car * np.sin(self.mapca.yaw)
+            obs_locs_y_cartesian = self.mapca.y + obs_locs_y_car * np.cos(self.mapca.yaw) + obs_locs_x_car * np.sin(self.mapca.yaw)
+        else:
+            obs_locs_x_cartesian = self.mapca.x + obs_locs_x_car.copy()
+            obs_locs_y_cartesian = self.mapca.y + obs_locs_y_car.copy()
+        self.get_logger().info(str(obs_locs_y_cartesian))
         obs_locs = np.vstack((obs_locs_x_cartesian, obs_locs_y_cartesian))
         # try:
             # print(self.x, self.y)

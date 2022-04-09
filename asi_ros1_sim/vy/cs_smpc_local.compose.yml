@@ -16,7 +16,7 @@ services:
       ROS_MASTER_URI: http://localhost:11311
   controller:
     command: >-
-      bash -c "source install/local_setup.bash && cd src/ && ros2 run asi_ctrl map_ca &
+      bash -c "source install/local_setup.bash && cd src/ && ros2 run asi_ctrl map_ca --ros-args --params-file /ros2_ws/cssmpc_configs/default_params.yaml &
         source install/local_setup.bash && cd src/ && ros2 run asi_ctrl cssmpc --ros-args --params-file /ros2_ws/cssmpc_configs/default_params.yaml"
     image: $CONTROLLERIMAGE
     network_mode: host
