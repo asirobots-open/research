@@ -281,7 +281,7 @@ class CS_SMPC(rclpy.node.Node):
     #     self.x_target[0:-self.n:self.n, 0] = target_speeds
 
     def convert_obs_to_constraints(self, xs):
-        ceiling = 20.0
+        ceiling = 10.0
         boundary_dists = ceiling * np.ones((2, self.N))
         # try:
         #     obs_locs_map = np.ones_like(self.obs_locs)
