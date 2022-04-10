@@ -1,0 +1,16 @@
+{
+  "anchors": {
+    "CALIBRATION": "object:asi_mining_loop",
+    "ROS2": "foxy"
+  },
+  "compose": "compose:asi_boring_sim",
+  "object_mods": {},
+  "passed": false,
+  "repos": [
+    "git|bitbucket.org|autonomoussolutions|research_development|7636aaf871c4d27c686ad8f5d13d21df731013cd",
+    "git|bitbucket.org|autonomoussolutions|research_messages|02680261f71be0654841db97ce049eeb63d00f8a",
+    "git|bitbucket.org|autonomoussolutions|surface_sim|fb566fca32ee307201aa2f509ea2cb3b81c1657f",
+    "git|bitbucket.org|autonomoussolutions|vy_test_components|41523712b04d2f8e95018dbb0bf90dfaf7a9a91f+"
+  ],
+  "stage_repos": []
+}
