@@ -36,7 +36,7 @@ RUN pip3 install Mosek --user
 #RUN pip3 install -r requirements.txt
 
 # RUN cp -r asi_msgs/ src/
-RUN /bin/bash -c '. /opt/ros/$ROS2/setup.bash; colcon build --packages-select asi_msgs asi_ctrl'
+RUN /bin/bash -c '. /opt/ros/$ROS2/setup.bash; colcon build --packages-select asi_msgs asi_ctrl --merge-install'
 RUN mkdir /root/mosek
 RUN cp src/mosek.lic /root/mosek
 

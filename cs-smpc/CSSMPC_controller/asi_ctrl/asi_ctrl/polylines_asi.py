@@ -23,11 +23,6 @@ class Map_CA(rclpy.node.Node):
 
     def __init__(self):
         super().__init__('map_ca')
-        latching_qos = rclpy.qos.QoSProfile(depth=1,
-                                            durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
-                                            reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
-        self.create_subscription(AsiClothoidPath, "/ius0/planned_path", self.path_cb, latching_qos)
-        self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
         self.declare_parameter('num_smoothed_path_points', 500)
         self.num_smoothed_path_points =  self.get_parameter('num_smoothed_path_points').get_parameter_value().integer_value
         self.declare_parameter('width_cells', 120)
@@ -46,29 +41,11 @@ class Map_CA(rclpy.node.Node):
         self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
         self.declare_parameter('bound_stride', 1.0)
         self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
+        self.declare_parameter('odometry_topic', '')
+        self.odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
+        self.declare_parameter('plan_topic', '')
+        self.plan_topic = self.get_parameter('plan_topic').get_parameter_value().string_value
 
-        # rospack = rospkg.RosPack()
-        # # package_path = rospack.get_path('autorally_private_control')
-        # package_path = '/home/user/catkin_ws/src/autorally_private/autorally_private_control'
-        # file_name = 'CCRF_2021-01-10.npz'
-        # track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
-        # p_x = track_dict['X_cen_smooth']
-        # p_y = track_dict['Y_cen_smooth']
-        # file_name = 'ccrf_track_optimal_1000s_15m.npz'
-        # track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
-        # try:
-        #     p_x = track_dict['X_cen_smooth']
-        #     p_y = track_dict['Y_cen_smooth']
-        # except KeyError:
-        #     p_x = track_dict['pts'][:, 0]
-        #     p_y = track_dict['pts'][:, 1]
-        #     self.rho = track_dict['curvature']
-        # self.p = np.array([p_x, p_y])
-        # dif_vecs = self.p[:, 1:] - self.p[:, :-1]
-        # self.dif_vecs = dif_vecs
-        # self.slopes = dif_vecs[1, :] / dif_vecs[0, :]
-        # self.midpoints = self.p[:, :-1] + dif_vecs/2
-        # self.s = np.cumsum(np.linalg.norm(dif_vecs, axis=0))
         self.p = np.empty(())
         self.dif_vecs = np.empty(())
         self.slopes = np.empty(())
@@ -82,16 +59,17 @@ class Map_CA(rclpy.node.Node):
         self.wf = 0.1
         self.wr = 0.1
 
-        # plt.plot(p_x, p_y, '.-')
-        # plt.plot(self.midpoints[0], self.midpoints[1], 'x')
-        # plt.show()
-
-        self.create_subscription(Odometry, "/ius0/odom_topic", self.odom_cb, 1)
+        latching_qos = rclpy.qos.QoSProfile(depth=1,
+                                            durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
+                                            reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
+        self.create_subscription(AsiClothoidPath, self.plan_topic, self.path_cb, latching_qos)
+        self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
+        self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, 1)
         # rospy.Subscriber("/wheelSpeeds", wheelSpeeds, self.wheel_cb)
-        self.mapca_pub = self.create_publisher(MapCA, '/MAP_CA/mapCA', 10)
+        self.mapca_pub = self.create_publisher(MapCA, 'mapCA', 10)
         self.create_subscription(OccupancyGrid, "/ius0/terrain_cost", self.obstacle_callback, 1)
-        self.boundary_pub = self.create_publisher(Path, "/boundaries", 10)
-        self.bounds_array_pub = self.create_publisher(MapBounds, "/bounds_array", 2)
+        self.boundary_pub = self.create_publisher(Path, "boundaries", 10)
+        self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", 2)
 
     def localize(self, M, psi):
         # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)

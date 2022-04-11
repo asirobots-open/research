@@ -27,8 +27,6 @@ from asi_msgs.msg import MapBounds
 class CS_SMPC(rclpy.node.Node):
     def __init__(self):
         super().__init__('CSSMPC')
-        self.command_pub = self.create_publisher(AsiTBSG, "/ius0/vcu_wrench", 1)
-        self.path_pub = self.create_publisher(Path, "/trajectory", 1)
         # self.goal_pub = self.create_publisher(PointCloud, "/goal", 1)
         # self.boundary_pub = self.create_publisher(Path, "/boundaries", 2)
         self.chassis_command = AsiTBSG()
@@ -77,6 +75,8 @@ class CS_SMPC(rclpy.node.Node):
         self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
         self.declare_parameter('bound_stride', 1.0)
         self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
+        self.declare_parameter('command_topic', '')
+        self.command_topic = self.get_parameter('command_topic').get_parameter_value().string_value
 
         self.n = 6
         self.m = 2
@@ -146,9 +146,11 @@ class CS_SMPC(rclpy.node.Node):
         self.t2 = time.time()
         self.bounds_array = 100.0 * np.ones((2, int(self.bound_length / self.bound_stride)))
 
-        self.create_subscription(MapCA, "/MAP_CA/mapCA", self.odom_callback, 10)
+        self.command_pub = self.create_publisher(AsiTBSG, self.command_topic, 1)
+        self.path_pub = self.create_publisher(Path, "trajectory", 1)
+        self.create_subscription(MapCA, "mapCA", self.odom_callback, 10)
         self.get_logger().info('subscribed to map odom')
-        self.create_subscription(MapBounds, "/bounds_array", self.bounds_callback, 2)
+        self.create_subscription(MapBounds, "bounds_array", self.bounds_callback, 2)
 
     def dynamic_reconfigure(self):
         self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
