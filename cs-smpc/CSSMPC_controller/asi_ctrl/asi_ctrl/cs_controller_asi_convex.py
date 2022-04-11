@@ -356,7 +356,7 @@ class CS_SMPC(rclpy.node.Node):
             nearest = np.argmin(np.linalg.norm(self.state - ss, axis=0))
             K = ks[:, :, nearest]
         mu_0 = self.state.copy()
-        print('mu_0', mu_0)
+        # print('mu_0', mu_0)
         if self.load_k:
             V, _K, X_bar, lin_params = self.update_solution(self.state, self.us, self.D, K=K)
         else:

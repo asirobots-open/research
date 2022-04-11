@@ -286,6 +286,10 @@ class Map_CA(rclpy.node.Node):
                 right_bound = np.max(obs_locs_map[0, obs_locs_map[0, :] < 0.0])
             except ValueError:
                 right_bound = -ceiling
+            self.get_logger().info(str(left_bound) + ', ' + str(right_bound))
+            if abs(left_bound) < 0.1 and abs(right_bound) < 0.1:
+                left_bound = np.max(obs_locs_map[0, obs_locs_map[0, :] > 0.0])
+                right_bound = np.min(obs_locs_map[0, obs_locs_map[0, :] > 0.0]) + 0.5
             # if np.abs(right_bound) < np.abs(left_bound) or len(left_bound) == 0:
             #     left_bound = ceiling
             # elif len(right_bound) == 0:
