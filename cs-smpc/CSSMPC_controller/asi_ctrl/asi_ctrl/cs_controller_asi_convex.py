@@ -21,6 +21,7 @@ import rospkg
 #from autorally_msgs.msg import runstop
 from asi_msgs.msg import MapCA
 from asi_ctrl import polylines_asi
+from asi_msgs.msg import MapBounds
 
 
 class CS_SMPC(rclpy.node.Node):
@@ -70,6 +71,12 @@ class CS_SMPC(rclpy.node.Node):
         self.declare_parameter('R_throttle', 2.0)
         R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
         self.create_timer(1.0, self.dynamic_reconfigure)
+        self.declare_parameter('bound_celing', 20.0)
+        self.bound_ceiling = self.get_parameter('bound_celing').get_parameter_value().double_value
+        self.declare_parameter('bound_length', 25.0)
+        self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
+        self.declare_parameter('bound_stride', 1.0)
+        self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
 
         self.n = 6
         self.m = 2
@@ -137,10 +144,11 @@ class CS_SMPC(rclpy.node.Node):
         self.us = np.tile(np.array([0.0, 0.02]).reshape((-1, 1)), (1, self.N))
         self.D = np.zeros((self.n, self.l))
         self.t2 = time.time()
+        self.bounds_array = 100.0 * np.ones((2, int(self.bound_length / self.bound_stride)))
 
         self.create_subscription(MapCA, "/MAP_CA/mapCA", self.odom_callback, 10)
         self.get_logger().info('subscribed to map odom')
-        # self.create_subscription(OccupancyGrid, "/ius0/terrain_cost", self.obstacle_callback, 1)
+        self.create_subscription(MapBounds, "/bounds_array", self.bounds_callback, 2)
 
     def dynamic_reconfigure(self):
         self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
@@ -214,46 +222,6 @@ class CS_SMPC(rclpy.node.Node):
         self.begin = 1
         self.main_update()
 
-    # def obstacle_callback(self, occupancy_msg=None):
-    #     # np.set_printoptions(threshold=sys.maxsize)
-    #     occ = np.asarray(occupancy_msg.data).reshape((60, 60))
-    #     obs_locs_y_map, obs_locs_x_map = np.where(occ > -1)
-    #     obs_locs_x_car = obs_locs_x_map / 2.0 - 7.0
-    #     obs_locs_y_car = obs_locs_y_map / 2.0 - 14.5
-    #     # obs_locs_x_car = np.array([10.0, 12.0])
-    #     # obs_locs_y_car = np.array([14.0, 15.0])
-    #     # lateral_distance_grid = 14 * np.ones((60, 60))
-    #     # mask = np.vstack((obs_locs_y_map, obs_locs_x_map))
-    #     # lateral_distance_grid[mask[0, :], mask[1, :]] = obs_locs_y_car
-    #     # right_half = lateral_distance_grid[:30, 14:]
-    #     # left_half = lateral_distance_grid[30:, 14:]
-    #     # left_lateral_dists = np.min(np.abs(left_half), axis=0)
-    #     # right_lateral_dists = np.min(np.abs(right_half), axis=0)
-    #     # self.obs_locs = np.vstack((left_lateral_dists, right_lateral_dists))
-    #     obs_locs_x_cartesian = self.x + obs_locs_x_car * np.cos(self.yaw) - obs_locs_y_car * np.sin(self.yaw)
-    #     obs_locs_y_cartesian = self.y + obs_locs_y_car * np.cos(self.yaw) + obs_locs_x_car * np.sin(self.yaw)
-    #     self.obs_locs = np.vstack((obs_locs_x_cartesian, obs_locs_y_cartesian))
-    #     # try:
-    #         # print(self.x, self.y)
-    #         # print(obs_locs_x_car[0], obs_locs_y_car[0])
-    #         # print(obs_locs_x_cartesian[0], obs_locs_y_cartesian[0])
-    #     # except IndexError:
-    #     #     pass
-    #     # point_cloud = PointCloud()
-    #     # point_cloud.header.frame_id = 'map'
-    #     # for ii in range(len(obs_locs_x_cartesian)):
-    #     #     point = Point32()
-    #     #     point.x = obs_locs_x_cartesian[ii]
-    #     #     point.y = obs_locs_y_cartesian[ii]
-    #     #     point.z = 0.0
-    #     #     point_cloud.points.append(point)
-    #     # # channel = ChannelFloat32()
-    #     # # channel.name = 'intensity'
-    #     # # channel.values = np.ones
-    #     # # point_cloud.channels.append(channel)
-    #     # self.goal_pub.publish(point_cloud)
-    #     return
-
     def roll_out_trajectory(self, x_0, us, N, lin=None):
         x_0 = x_0.copy()
         # x_0[3:, 0] = 0
@@ -275,71 +243,18 @@ class CS_SMPC(rclpy.node.Node):
             # print(x_0, us, xs)
         return xs
 
-    # def update_target_speed(self, xs):
-    #     rhos = np.abs(self.ar.get_curvature(xs[7, 1:]))
-    #     target_speeds = self.target_speed - rhos / 0.6 * (self.target_speed - 2)
-    #     self.x_target[0:-self.n:self.n, 0] = target_speeds
-
     def convert_obs_to_constraints(self, xs):
-        ceiling = 20.0
-        boundary_dists = ceiling * np.ones((2, self.N))
-        # try:
-        #     obs_locs_map = np.ones_like(self.obs_locs)
-        #     for ii in range(self.obs_locs.shape[1]):
-        #         _, norm_dist, s_dist, speed = self.ar.map_ca.localize(self.obs_locs[:, ii], 0.0)
-        #         obs_locs_map[:, ii] = np.array([norm_dist, s_dist])
-        #     # print(obs_locs_map[:, :])
-        #     # print(self.state[-2:])
-        #     left_bound = np.min(obs_locs_map[0, :])
-        #     right_bound = np.max(obs_locs_map[0, :])
-        #     if np.abs(right_bound) < np.abs(left_bound):
-        #         left_bound = ceiling
-        #     else:
-        #         right_bound = -ceiling
-        #     s_start = np.min(obs_locs_map[1, :])
-        #     s_end = np.max(obs_locs_map[1, :])
-        #     k_start = np.argmin(np.abs(xs[-1, :] - s_start))
-        #     k_end = np.argmin(np.abs(xs[-1, :] - s_end))
-        #     dist_start = np.min(np.abs(xs[-1, :] - s_start))
-        #     dist_end = np.min(np.abs(xs[-1, :] - s_end))
-        #     # if dist_start and dist_end < 10.0:
-        #     boundary_dists[:, k_start:k_end+1] = np.vstack((left_bound, -1*right_bound))
-        # except (IndexError, ValueError) as e:
-        #     print('no obs')
-        #
-        # left_bound = Path()
-        # right_bound = Path()
-        # bound_stride = 1
-        # bound_time = self.get_clock().now().to_msg()
-        # for ii in range(int(self.N / bound_stride)):
-        #     pose_stamped = PoseStamped()
-        #     dists = xs[-1, ii * bound_stride] - self.ar.s
-        #     mini = np.argmin(np.abs(dists))
-        #     p = self.ar.p[:, mini]
-        #     theta = np.arctan2(self.ar.dif_vecs[1, mini], self.ar.dif_vecs[0, mini])
-        #     pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - boundary_dists[0, ii * bound_stride] * np.sin(theta)
-        #     pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + boundary_dists[0, ii * bound_stride] * np.cos(theta)
-        #     pose_stamped.pose.position.z = 0.0
-        #     pose_stamped.pose.orientation.z = 1.0
-        #     # pose_stamped.header.seq = ii
-        #     pose_stamped.header.stamp = bound_time
-        #     pose_stamped.header.frame_id = 'map'
-        #     left_bound.poses.append(copy.deepcopy(pose_stamped))
-        #     pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - -1*boundary_dists[1, ii * bound_stride] * np.sin(theta)
-        #     pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + -1*boundary_dists[1, ii * bound_stride] * np.cos(theta)
-        #     right_bound.poses.append(pose_stamped)
-        # left_bound.header.frame_id = 'map'
-        # # left_bound.header.seq = 0
-        # left_bound.header.stamp = bound_time
-        # self.boundary_pub.publish(left_bound)
-        # right_bound.header.frame_id = 'map'
-        # # right_bound.header.seq = 0
-        # right_bound.header.stamp = bound_time
-        # self.boundary_pub.publish(right_bound)
-        #
+        # boundary_dists = self.bound_ceiling * np.ones((2, self.N))
+        bound_ss = np.arange(xs[-1, 0], xs[-1, 0] + self.bound_length, self.bound_stride)
+        bound_ss = bound_ss[:self.bounds_array.shape[1]]
+        min_ks = np.argmin(np.abs(xs[-1:, :] - bound_ss.reshape((-1, 1))), axis=0)
+        boundary_dists = self.bounds_array[:, min_ks]
         # # boundary_dists = boundary_dists[:, ::-1]
         # # print('boundary dists:', boundary_dists)
         return boundary_dists
+
+    def bounds_callback(self, msg):
+        self.bounds_array = np.asarray(msg.array.data).reshape((2, int(self.bound_length / self.bound_stride)))
 
     def update_solution(self, x_0, us, D, K=None):
         # x_0, us, D = queue
@@ -365,6 +280,41 @@ class CS_SMPC(rclpy.node.Node):
         try:
             V, K = self.solver.solve()
             K = K.reshape((self.m * self.N, self.n * self.N))
+
+            X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
+            x_bar = X_bar.reshape((self.n, self.N), order='F')
+            # print(x_bar)
+            # print(xs)
+            # xs_cartesian = np.zeros((self.n, self.N))
+            # xs_cartesian[:, 0] = x_0.flatten()
+            # xs_cartesian[3:, 0] = np.vstack((self.yaw, self.x, self.y)).flatten()
+            # self.ar.map_coords = False
+            # for ii in range(self.N - 1):
+            #     xs_cartesian[:, ii + 1] = self.ar.update_dynamics(xs_cartesian[:, ii:ii + 1], us[:, ii:ii + 1], self.dt_linearization).flatten()
+            # self.ar.map_coords = True
+            trajectory = Path()
+            path_stride = 1
+            path_time = self.get_clock().now().to_msg()
+            for ii in range(int(self.N / path_stride)):
+                pose_stamped = PoseStamped()
+                dists = x_bar[-1, ii * path_stride] - self.ar.s
+                mini = np.argmin(np.abs(dists))
+                p = self.ar.p[:, mini]
+                theta = np.arctan2(self.ar.dif_vecs[1, mini], self.ar.dif_vecs[0, mini])
+                pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - x_bar[-2, ii * path_stride] * np.sin(theta)
+                pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + x_bar[-2, ii * path_stride] * np.cos(theta)
+                # pose_stamped.pose.position.x = xs_cartesian[4, ii * path_stride]
+                # pose_stamped.pose.position.y = xs_cartesian[5, ii * path_stride]
+                pose_stamped.pose.position.z = 0.0
+                pose_stamped.pose.orientation.z = 1.0
+                # pose_stamped.header.seq = ii
+                pose_stamped.header.stamp = path_time
+                pose_stamped.header.frame_id = 'map'
+                trajectory.poses.append(pose_stamped)
+            trajectory.header.frame_id = 'map'
+            # trajectory.header.seq = 0
+            trajectory.header.stamp = path_time
+            self.path_pub.publish(trajectory)
         except RuntimeError:
             V = np.tile(np.array([0, 0.1]).reshape((-1, 1)), (self.N, 1)).flatten()
             X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
@@ -374,40 +324,6 @@ class CS_SMPC(rclpy.node.Node):
         finally:
             # print(x_0, us, D, K)
             pass
-        X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
-        x_bar = X_bar.reshape((self.n, self.N), order='F')
-        # print(x_bar)
-        # print(xs)
-        # xs_cartesian = np.zeros((self.n, self.N))
-        # xs_cartesian[:, 0] = x_0.flatten()
-        # xs_cartesian[3:, 0] = np.vstack((self.yaw, self.x, self.y)).flatten()
-        # self.ar.map_coords = False
-        # for ii in range(self.N - 1):
-        #     xs_cartesian[:, ii + 1] = self.ar.update_dynamics(xs_cartesian[:, ii:ii + 1], us[:, ii:ii + 1], self.dt_linearization).flatten()
-        # self.ar.map_coords = True
-        trajectory = Path()
-        path_stride = 1
-        path_time = self.get_clock().now().to_msg()
-        for ii in range(int(self.N / path_stride)):
-            pose_stamped = PoseStamped()
-            dists = x_bar[-1, ii * path_stride] - self.ar.s
-            mini = np.argmin(np.abs(dists))
-            p = self.ar.p[:, mini]
-            theta = np.arctan2(self.ar.dif_vecs[1, mini], self.ar.dif_vecs[0, mini])
-            pose_stamped.pose.position.x = p[0] + dists[mini] * np.cos(theta) - x_bar[-2, ii * path_stride] * np.sin(theta)
-            pose_stamped.pose.position.y = p[1] + dists[mini] * np.sin(theta) + x_bar[-2, ii * path_stride] * np.cos(theta)
-            # pose_stamped.pose.position.x = xs_cartesian[4, ii * path_stride]
-            # pose_stamped.pose.position.y = xs_cartesian[5, ii * path_stride]
-            pose_stamped.pose.position.z = 0.0
-            pose_stamped.pose.orientation.z = 1.0
-            # pose_stamped.header.seq = ii
-            pose_stamped.header.stamp = path_time
-            pose_stamped.header.frame_id = 'map'
-            trajectory.poses.append(pose_stamped)
-        trajectory.header.frame_id = 'map'
-        # trajectory.header.seq = 0
-        trajectory.header.stamp = path_time
-        self.path_pub.publish(trajectory)
         # queue.put((V, K, X_bar, (A, B, d)))
         return V, K, X_bar, (A, B, d)
 
@@ -430,72 +346,6 @@ class CS_SMPC(rclpy.node.Node):
         # self.chassis_command.sender = "CSSMPC"
         self.command_pub.publish(self.chassis_command)
         return y
-
-    # def system_id(self):
-    #     throttle_range = np.arange(0.0, 1.0, step=0.01)
-    #     steering_range = np.arange(-1.0, 1.0, step=0.01)
-    #
-    #     # ramp
-    #     # for ii in range(100):
-    #     #     throttle = throttle_range[ii]
-    #     #     self.chassis_command.throttle_cmd = throttle
-    #     #     self.chassis_command.steer_cmd = 0.0
-    #     #     self.chassis_command.brake_cmd = 0.0
-    #     #     self.chassis_command.header.stamp = rospy.Time.now()
-    #     #     self.command_pub.publish(self.chassis_command)
-    #     #     rospy.sleep(0.1)
-    #     # for ii in range(100):
-    #     #     throttle = throttle_range[-1-ii]
-    #     #     self.chassis_command.throttle_cmd = throttle
-    #     #     self.chassis_command.steer_cmd = 0.0
-    #     #     self.chassis_command.brake_cmd = 0.0
-    #     #     self.chassis_command.header.stamp = rospy.Time.now()
-    #     #     self.command_pub.publish(self.chassis_command)
-    #     #     rospy.sleep(0.1)
-    #     for ii in range(200):
-    #         steer = steering_range[ii]
-    #         self.chassis_command.throttle_cmd = 0.0
-    #         self.chassis_command.steer_cmd = steer
-    #         self.chassis_command.brake_cmd = 0.0
-    #         self.chassis_command.header.stamp = rospy.Time.now()
-    #         self.command_pub.publish(self.chassis_command)
-    #         rospy.sleep(0.1)
-    #
-    #     # random
-    #     for ii in range(200):
-    #         jj = int(100 * np.random.random())
-    #         steering = steering_range[jj]
-    #         self.chassis_command.throttle_cmd = 0.0
-    #         self.chassis_command.steer_cmd = steering
-    #         self.chassis_command.brake_cmd = 0.0
-    #         self.chassis_command.header.stamp = rospy.Time.now()
-    #         self.command_pub.publish(self.chassis_command)
-    #         rospy.sleep(0.1)
-    #
-    #
-    #         # def ltv_solve(self, queue):
-    # #     x_0, V, ltv_sys = queue.get()
-    # #     t2 = time.time()
-    # #     us = V.reshape((controller.m, controller.N), order='F')
-    # #     xs = self.roll_out_trajectory(x_0, us, controller.N, lin=ltv_sys)
-    # #     print('roll', time.time() - t2)
-    # #     # t2 = time.time()
-    # #     A, B, d = self.ar.linearize_dynamics(xs, us)
-    # #     print('ltv_solve', time.time() - t2)
-    # #     # print('lin time:', time.time()-t2)
-    # #     A = A.reshape((self.n, self.n, self.N), order='F')
-    # #     B = B.reshape((self.n, self.m, self.N), order='F')
-    # #     d = d.reshape((self.n, 1, self.N), order='F')
-    # #     D = np.zeros((self.n, self.l))
-    # #     D = np.tile(D.reshape((self.n, self.l, 1)), (1, 1, self.N))
-    # #     A, B, d, D = self.ar.form_long_matrices_LTV(A, B, d, D)
-    # #     ltv_sys = (A, B, d, D)
-    # #     sigma_0 = np.zeros((self.n, self.n))
-    # #     sigma_N_inv = np.zeros((self.n, self.n))
-    # #     print('here')
-    # #     queue.put(ltv_sys)
-    # #     print('here2')
-    # #     return
 
     def main_update(self):
         num_steps_applied = 1

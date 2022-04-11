@@ -9,7 +9,7 @@
        delta_steer_min: -0.3
        delta_steer_max: 0.3
        delta_throttle_min: -0.2
-       delta_throttle_max: 0.2
+       delta_throttle_max: 0.05
        Q_speed: 10.0
        Q_heading: 300.0
        Q_lateral: 30.0
@@ -18,3 +18,8 @@
 #       QN_lateral: max(Q_heading, Q_lateral) * horizon_length
        R_steer: 2.0
        R_throttle: 2.0
+
+       width_cells: 120
+       front_cells: 60
+       back_cells: 60
+       inertial_frame: true
