@@ -17,6 +17,7 @@ class Model:
         self.N = N
         self.vehicle_centric = vehicle_centric
         self.map_coords = map_coords
+        self.steering_gain = -0.06
 
         print('waiting for map')
         while True:
@@ -78,11 +79,11 @@ class Model:
             vx = np.maximum(vx, 0.1)
 
         m_Vehicle_kSteering = -0.06  # -pi / 180 * 18.7861
-        m_Vehicle_cSteering = -0.001  # 0.0109
+        m_Vehicle_cSteering = -0.000  # 0.0109
         throttle_factor = 0.38
         # delta = input[:, 0]
         steering = input[:, 0]
-        delta = m_Vehicle_kSteering * steering + m_Vehicle_cSteering
+        delta = self.steering_gain * steering + m_Vehicle_cSteering
         T = input[:, 1]#np.maximum(input[:, 1], 0)
 
         min_velo = 0.1

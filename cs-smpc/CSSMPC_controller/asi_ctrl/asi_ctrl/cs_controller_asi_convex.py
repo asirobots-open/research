@@ -77,6 +77,8 @@ class CS_SMPC(rclpy.node.Node):
         self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
         self.declare_parameter('command_topic', '')
         self.command_topic = self.get_parameter('command_topic').get_parameter_value().string_value
+        self.declare_parameter('steering_gain', -1.0)
+        self.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
 
         self.n = 6
         self.m = 2
@@ -111,6 +113,7 @@ class CS_SMPC(rclpy.node.Node):
         # self.server = Server(CSSMPC_paramsConfig, self.dynamic_reconfigure)
 
         self.ar = cs_model.Model(self.N, vehicle_centric=False, map_coords=True)
+        self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
 
         if self.load_k:
             self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
@@ -178,6 +181,8 @@ class CS_SMPC(rclpy.node.Node):
         R[0, 0] = R_steer  # 2
         R[1, 1] = R_throttle  # 1
         self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
+
+        self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
 
     def odom_callback(self, map_msg):
         # self.get_logger().info('map odom received')

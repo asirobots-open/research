@@ -15,8 +15,9 @@ services:
       bash -c ". /opt/ros/$ROS2/setup.bash && . install/setup.bash && (xterm &
         python3 ./install/share/boring_nodes/launch/ackermann_sim_launch.py /calibration.json &
         rviz2 -d /rviz/asi_partners_sim_ros2.rviz) &
-        source install/local_setup.bash && cd src/ && ros2 run asi_ctrl map_ca -r __ns:='/ius0' --ros-args --params-file /ros2_ws/cssmpc_configs/default_params.yaml &
-        source install/local_setup.bash && cd src/ && ros2 run asi_ctrl cssmpc -r __ns:='/ius0' --ros-args --params-file /ros2_ws/cssmpc_configs/default_params.yaml"
+        rqt &
+        source install/local_setup.bash && cd src/ && ros2 run asi_ctrl map_ca -r __ns:=/${CALIBRATION.namespace} --ros-args --params-file /params.yaml &
+        source install/local_setup.bash && cd src/ && ros2 run asi_ctrl cssmpc -r __ns:=/${CALIBRATION.namespace} --ros-args --params-file /params.yaml"
     image: $CONTROLLERIMAGE
     privileged: true
     environment:
@@ -27,7 +28,7 @@ services:
       - $CALIBRATION>calibration.json:/calibration.json:ro
       - read_only: true
         source: $PARAMS/cssmpc_configs/default_params.yaml
-        target: /ros2_ws/cssmpc_configs/default_params.yaml
+        target: /params.yaml
         type: bind
 
 version: '3.2'

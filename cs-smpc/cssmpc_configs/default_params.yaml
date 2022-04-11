@@ -28,3 +28,5 @@
        command_topic: vcu_wrench
        plan_topic: planned_path
        viz_topic: vizplan
+
+       steering_gain: -0.06
