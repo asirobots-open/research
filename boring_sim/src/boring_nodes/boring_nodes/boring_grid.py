@@ -1,5 +1,7 @@
 import math, json
 import rclpy
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import OccupancyGrid
@@ -17,8 +19,12 @@ class BoringGrid(Node):
         terrain_topic = self.get_parameter('terrain_topic').get_parameter_value().string_value
         odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
 
-        self.publisher_ = self.create_publisher(OccupancyGrid, terrain_topic, 10)        
-        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, 10)
+        qos_profile = 10 #QoSProfile(depth=1)
+        # qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        # qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        # qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+        self.publisher_ = self.create_publisher(OccupancyGrid, terrain_topic, qos_profile)
+        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, qos_profile)
 
         self.declare_parameter('calibration_file', '')
         self.read_calibration( self.get_parameter('calibration_file').get_parameter_value().string_value )

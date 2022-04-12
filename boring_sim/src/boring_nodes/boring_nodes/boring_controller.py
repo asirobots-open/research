@@ -1,6 +1,9 @@
 import math
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
+
 from boring_nodes import clothoid, arc
 from nav_msgs.msg import Odometry
 from asi_msgs.msg import AsiTBSG
@@ -23,13 +26,16 @@ class BoringController(Node):
         self.declare_parameter('odometry_topic', 'odom_topic')
         command_topic = self.get_parameter('command_topic').get_parameter_value().string_value
         plan_topic = self.get_parameter('plan_topic').get_parameter_value().string_value
-        # terrain_topic = self.get_parameter('terrain_topic').get_parameter_value().string_value
         odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
 
-        self.publisher_ = self.create_publisher(AsiTBSG, command_topic, 10)        
-        self.plan_sub = self.create_subscription(AsiClothoidPath, plan_topic, self.planCb, 10)
-        # self.terrain_sub = self.create_subscription(OccupancyGrid, terrain_topic, self.terrainCb, 10)
-        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, 10)
+        qos_profile = 10 #QoSProfile(depth=10)
+        # qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        # qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        # qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+
+        self.publisher_ = self.create_publisher(AsiTBSG, command_topic, qos_profile)
+        self.plan_sub = self.create_subscription(AsiClothoidPath, plan_topic, self.planCb, qos_profile)
+        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, qos_profile)
 
     def planCb(self, msg):
         self.PATH = []

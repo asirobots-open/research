@@ -7,16 +7,7 @@
 
 # START FROM THE asi_boring_sim IMAGE
 # FROM asi_boring_sim
-FROM asi_boring_sim
-
-# COPY YOUR CODE INTO THE IMAGE
-# COPY . .
-COPY . /ros2_ws/src
-
-WORKDIR /ros2_ws
-
-RUN ls src/
-RUN lsb_release -a
+FROM asirobots/asi_ros2_sim:foxy
 
 # INSTALL Dependencies
 # RUN wget https://github.com/deadsnakes/python3.6/archive/refs/tags/debian/3.6.13-1+xenial1.tar.gz
@@ -33,7 +24,19 @@ RUN pip3 install PyYAML rospkg catkin_pkg
 RUN pip3 install numpy --user
 RUN pip3 install scipy --user
 RUN pip3 install Mosek --user
+RUN pip3 install transforms3d
 #RUN pip3 install -r requirements.txt
+
+COPY --from=asi_boring_sim /ros2_ws /ros2_ws
+
+# COPY YOUR CODE INTO THE IMAGE
+# COPY . .
+COPY . /ros2_ws/src
+
+WORKDIR /ros2_ws
+
+RUN ls src/
+RUN lsb_release -a
 
 # RUN cp -r asi_msgs/ src/
 RUN /bin/bash -c '. /opt/ros/$ROS2/setup.bash; colcon build --packages-select asi_msgs asi_ctrl --merge-install'
@@ -50,3 +53,4 @@ RUN cp src/mosek.lic /root/mosek
 # PUT THE RUN COMMAND HERE OR IN THE COMPOSE FILE
 CMD bash -c ". until rostopic list ; do sleep 1; done && sleep 3 && python cs_controller_asi_convex.py"
 
+#VY SOURCE asirobots/asi_ros2_sim:foxy

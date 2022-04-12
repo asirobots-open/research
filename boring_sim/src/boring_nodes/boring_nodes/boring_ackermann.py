@@ -1,5 +1,8 @@
 import math
 import rclpy
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
+
 from rclpy.node import Node
 from boring_nodes.ackermann import Ackermann
 from nav_msgs.msg import Odometry
@@ -25,9 +28,14 @@ class BoringAckermann(Node):
         self.ack.state.yaw = self.get_parameter('heading').get_parameter_value().double_value*math.pi/180
         
         self.timer_period = 0.05  # seconds
+        qos_profile = 10 #QoSProfile(depth=10)
+        # qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        # qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        # qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+
         self.simtimer = self.create_timer(self.timer_period, self.simulation)
-        self.publisher_ = self.create_publisher(Odometry, odometry_topic, 10)        
-        self.subscriber_ = self.create_subscription(AsiTBSG, command_topic, self.cmdCb, 10)
+        self.publisher_ = self.create_publisher(Odometry, odometry_topic, qos_profile)        
+        self.subscriber_ = self.create_subscription(AsiTBSG, command_topic, self.cmdCb, qos_profile)
         self.tfbroadcaster_ = TransformBroadcaster(self)
 
     def simulation(self):

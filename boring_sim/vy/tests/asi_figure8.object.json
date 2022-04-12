@@ -1,7 +1,7 @@
 {
   "data": {
     "map":"object:asi_main_figure_8_map",
-    "obstacles": "-120,10, 2",
+    "obstacles": "-128,10, 2",
     "ros2_parameters":"boring_grid_inertial.yml,figure_8.yml",
     "viapoints": "",
     "path": "object:asi_figure8_path",

@@ -4,13 +4,14 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
+        - /Status1
         - /Odometry1
         - /Odometry1/Shape1
         - /Path1
         - /Path1/Topic1
         - /Path1/Offset1
-        - /Map1
-        - /Path2
+        - /Map1/Topic1
         - /Path2/Topic1
         - /TF1/Frames1
         - /Path3
@@ -84,13 +85,13 @@ Visualization Manager:
         Head Length: 1
         Head Radius: 1
         Shaft Length: 1
-        Shaft Radius: 0.10000000149011612
+        Shaft Radius: 1
         Value: Arrow
       Topic:
-        Depth: 5
+        Depth: 1
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /ius0/odometry_teleop
       Value: true
     - Alpha: 1
@@ -114,10 +115,10 @@ Visualization Manager:
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
       Topic:
-        Depth: 5
-        Durability Policy: Transient Local
+        Depth: 1
+        Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /ius0/vizplan
       Value: true
     - Alpha: 0.699999988079071
@@ -130,7 +131,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /ius0/terrain_cost
       Update Topic:
         Depth: 5
@@ -256,7 +257,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0.010000434704124928
+      Angle: -0.01499952282756567
       Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -266,11 +267,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 3.6351542472839355
+      Scale: 7.766995906829834
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz_default_plugins)
-      X: -83.89903259277344
-      Y: 92.07705688476562
+      X: -16.425018310546875
+      Y: 30.9741153717041
     Saved: ~
 Window Geometry:
   Displays:

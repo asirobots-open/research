@@ -6,7 +6,7 @@
     "viapoints": "",
     "path": "object:asi_main_path",
     "namespace": "ius0",
-    "nodes": "boring_grid,boring_tfpub,boring_planner,boring_controller,boring_ackermann",
+    "nodes": "boring_grid,boring_tfpub,boring_planner,boring_ackermann",
     "cssmpc_params": "asi_main_params.yaml",
     "license_server": "surfacesim",
     "comment": "SET license_server to carsim license server (e.g. 10.10.100.26:27003) or to 'surfacesim'",

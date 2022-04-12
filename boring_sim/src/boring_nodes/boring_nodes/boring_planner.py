@@ -1,5 +1,8 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
+
 import math, json
 from asi_msgs.msg import AsiClothoidPath, AsiClothoid
 from nav_msgs.msg import Path
@@ -9,9 +12,6 @@ from boring_nodes import clothoid, arc
 class BoringPlanner(Node):
     def __init__(self):
         super().__init__('boring_planner')
-        latching_qos = rclpy.qos.QoSProfile(depth=1,
-            durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL)        
-
         self.declare_parameter('plan_topic', 'planned_path')
         self.declare_parameter('viz_topic', 'vizplan')
         self.declare_parameter('calibration_file', '')
@@ -19,12 +19,17 @@ class BoringPlanner(Node):
         viz_topic = self.get_parameter('viz_topic').get_parameter_value().string_value
         planpth = self.get_parameter('calibration_file').get_parameter_value().string_value
 
+        qos_profile = 10 #QoSProfile(depth=10)
+        # qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        # qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        # qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+
         self.radius = 10
         self.MYCLOTHOIDS = None
         self.default(planpth)
-        self.cmd_pub = self.create_publisher(AsiClothoidPath, plan_topic, qos_profile=latching_qos)
-        self.vis_pub = self.create_publisher(Path, viz_topic, qos_profile=latching_qos)
-        timer_period = 0.5  # seconds
+        self.cmd_pub = self.create_publisher(AsiClothoidPath, plan_topic, qos_profile=qos_profile)
+        self.vis_pub = self.create_publisher(Path, viz_topic, qos_profile=qos_profile)
+        timer_period = 2  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def default(self,planpth):
@@ -82,7 +87,7 @@ class BoringPlanner(Node):
             self.vis_pub.publish(self.plotarcs(arcs))
             self.get_logger().info('Publishing clothoid path containing {} clothoids!'.format(len(self.MYCLOTHOIDS)))
             self.cmd_pub.publish(self.pathplan(self.MYCLOTHOIDS))
-        self.MYCLOTHOIDS = None
+        # self.MYCLOTHOIDS = None
 
 def main(args=None):
     rclpy.init(args=args)

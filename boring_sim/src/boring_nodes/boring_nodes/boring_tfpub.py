@@ -1,5 +1,8 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.qos import QoSProfile
+
 from nav_msgs.msg import Odometry
 import tf_transformations
 from geometry_msgs.msg import TransformStamped
@@ -10,8 +13,12 @@ class BoringTfPub(Node):
         super().__init__('boring_tfpub')
         self.declare_parameter('odometry_topic', 'odom_topic')
         odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
+        qos_profile = 10 #QoSProfile(depth=1)
+        # qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        # qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        # qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
 
-        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, 10)
+        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, qos_profile)
         self.tfbroadcaster_ = TransformBroadcaster(self)
 
     def odometryCb(self, msg):
