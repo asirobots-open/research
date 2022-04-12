@@ -59,9 +59,9 @@ class Map_CA(rclpy.node.Node):
         self.wf = 0.1
         self.wr = 0.1
 
-        latching_qos = rclpy.qos.QoSProfile(depth=1,
-                                            durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
-                                            reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
+        latching_qos = 10# rclpy.qos.QoSProfile(depth=1,
+                                            # durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
+                                            # reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
         self.create_subscription(AsiClothoidPath, self.plan_topic, self.path_cb, latching_qos)
         self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
         self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, 1)
