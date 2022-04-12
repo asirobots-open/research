@@ -167,7 +167,7 @@ class CSSolver:
             M.constraint(Expr.sub(V.index(1), self.u_throttle.index(0)), Domain.inRange(slew_rate[1, 0], slew_rate[1, 1]))
             M.constraint(Expr.sub(V.index(0), self.u_steering.index(0)), Domain.inRange(slew_rate[0, 0], slew_rate[0, 1]))
             for ii in range(self.N - 1):
-                M.constraint(Expr.sub(V.index(ii+1), V.index(ii)),
+                M.constraint(Expr.sub(V.index((ii+1)*self.m), V.index(ii*self.m)),
                              Domain.inRange(slew_rate[0, 0], slew_rate[0, 1]))
 
             # terminal mean constraint

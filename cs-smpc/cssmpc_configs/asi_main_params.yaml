@@ -6,8 +6,8 @@
        time_step: 0.1
        throttle_min: -0.1
        throttle_max: 0.4
-       delta_steer_min: -0.3
-       delta_steer_max: 0.3
+       delta_steer_min: -0.05
+       delta_steer_max: 0.05
        delta_throttle_min: -0.2
        delta_throttle_max: 0.05
        Q_speed: 100.0
@@ -16,7 +16,7 @@
        QN_speed: 1000.0
 #       QN_heading: Q_heading * horizon_length
 #       QN_lateral: max(Q_heading, Q_lateral) * horizon_length
-       R_steer: 0.1
+       R_steer: 2.0
        R_throttle: 2.0
 
        width_cells: 120
@@ -29,4 +29,4 @@
        plan_topic: planned_path
        viz_topic: vizplan
 
-       steering_gain: -0.66
+       steering_gain: -1.0

@@ -22,8 +22,6 @@ from asi_msgs.msg import MapBounds
 class CS_SMPC(rclpy.node.Node):
     def __init__(self):
         super().__init__('CSSMPC')
-        # self.goal_pub = self.create_publisher(PointCloud, "/goal", 1)
-        # self.boundary_pub = self.create_publisher(Path, "/boundaries", 2)
         self.begin = 0
 
         self.declare_parameter('max_speed', 5.0)
@@ -104,14 +102,6 @@ class CS_SMPC(rclpy.node.Node):
         self.y = 0
         self.yaw = 0
 
-        # self.goal = PointStamped()
-        # self.goal.header.frame_id = "map"
-        # self.goal.point.x = self.x_target[4, 0]
-        # self.goal.point.y = self.x_target[5, 0]
-        # self.goal.point.z = 0.0
-        # self.goal_pub.publish(self.goal)
-        # self.server = Server(CSSMPC_paramsConfig, self.dynamic_reconfigure)
-
         self.ar = cs_model.Model(self.N, vehicle_centric=False, map_coords=True, use_vk=self.use_vk)
         self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
 
@@ -119,9 +109,6 @@ class CS_SMPC(rclpy.node.Node):
             self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
         else:
             self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.v_range, self.slew_rate, (False, 4*self.N), mean_only=True, k_form=1, prob_lvl=self.prob_lvl, chance_const_N=self.N, boundary_dim=-2, delta_slew_cost=1.0)
-            # self.solver.M.setSolverParam("mioTolAbsGap", 100)
-            # self.solver.M.setSolverParam("mioMaxTime", 0.1)
-            # self.solver.M.setSolverParam("mioTolFeas", 1.0e-3)
 
         Q = np.zeros((self.n, self.n))
         Q[0, 0] = Q_speed
