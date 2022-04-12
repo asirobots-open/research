@@ -265,7 +265,7 @@ class Map_CA(rclpy.node.Node):
         self.start = True
         return p_curvature, p_speed, self.s
 
-    def convert_obs_to_constraints(self, obs_locs):
+    def convert_obs_to_constraints(self, obs_locs, new_method=True):
         ceiling = self.bound_celing
         bound_length = self.bound_length
         bound_stride = self.bound_stride
@@ -306,10 +306,33 @@ class Map_CA(rclpy.node.Node):
         except (IndexError, ValueError) as e:
             self.get_logger().info('no obs')
             return boundary_dists
-
-        k_start = np.argmin(np.abs(np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride) - s_start))
-        k_end = np.argmin(np.abs(np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride) - s_end))
-        boundary_dists[:, k_start:k_end + 1] = np.vstack((left_bound, -1 * right_bound))
+        if new_method:
+            path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
+            left_obs = obs_locs_map[:, obs_locs_map[0, :] > 0.0]
+            right_obs = obs_locs_map[:, obs_locs_map[0, :] < 0.0]
+            # unique_ss = np.unique(obs_locs_map[1, :])
+            # condensed_obs = np.zeros((3, len(unique_ss)))
+            for ii, s in enumerate(path_ss):
+                left_ii = np.argmin(np.abs(left_obs[1, :] - s))
+                right_ii = np.argmin(np.abs(right_obs[1, :] - s))
+                left_dist = np.abs(left_obs[1, left_ii] - s)
+                if left_dist > bound_stride:
+                    left_bound = ceiling
+                else:
+                    left_bound = left_obs[0, left_ii]
+                right_dist = np.abs(right_obs[1, right_ii] - s)
+                if right_dist > bound_stride:
+                    right_bound = -ceiling
+                else:
+                    right_bound = right_obs[0, right_ii]
+                if abs(left_bound) < 1.0 or abs(right_bound) < 1.0:
+                    left_bound = np.max(left_obs[0, :])
+                    right_bound = np.min(left_obs[0, :]) + 0.5
+                boundary_dists[:, ii:ii+1] = np.vstack((left_bound, -1 * right_bound))
+        else:
+            k_start = np.argmin(np.abs(np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride) - s_start))
+            k_end = np.argmin(np.abs(np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride) - s_end))
+            boundary_dists[:, k_start:k_end + 1] = np.vstack((left_bound, -1 * right_bound))
         left_bound = Path()
         right_bound = Path()
         bound_time = self.get_clock().now().to_msg()
