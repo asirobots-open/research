@@ -4,20 +4,22 @@
        terminal_speed: -1.0
        horizon_length: 20
        time_step: 0.1
+       steer_min: -0.4
+       steer_max: 0.4
        throttle_min: 0.0
        throttle_max: 10.0
-       delta_steer_min: -0.3
-       delta_steer_max: 0.3
-       delta_throttle_min: -0.2
-       delta_throttle_max: 0.05
+       delta_steer_min: -0.1
+       delta_steer_max: 0.1
+       delta_throttle_min: -2.0
+       delta_throttle_max: 0.5
        Q_speed: 100.0
        Q_heading: 300.0
        Q_lateral: 30.0
        QN_speed: 1000.0
 #       QN_heading: Q_heading * horizon_length
 #       QN_lateral: max(Q_heading, Q_lateral) * horizon_length
-       R_steer: 0.1
-       R_throttle: 2.0
+       R_steer: 0.2
+       R_throttle: 0.2
 
        width_cells: 120
        front_cells: 60

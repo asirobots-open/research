@@ -34,6 +34,10 @@ class CS_SMPC(rclpy.node.Node):
         horizon_length = self.get_parameter('horizon_length').get_parameter_value().integer_value
         self.declare_parameter('time_step', 0.1)
         time_step = self.get_parameter('time_step').get_parameter_value().double_value
+        self.declare_parameter('steer_min', -1.0)
+        steer_min = self.get_parameter('steer_min').get_parameter_value().double_value
+        self.declare_parameter('steer_max', 1.0)
+        steer_max = self.get_parameter('steer_max').get_parameter_value().double_value
         self.declare_parameter('throttle_min', -0.2)
         throttle_min = self.get_parameter('throttle_min').get_parameter_value().double_value
         self.declare_parameter('throttle_max', 0.4)
@@ -91,7 +95,7 @@ class CS_SMPC(rclpy.node.Node):
             terminal_speed = self.terminal_speed
         self.x_target = np.vstack((self.x_target, np.array([terminal_speed, 0, 0, 0, 0, 0]).reshape((-1, 1))))
         self.mu_N = 10000 * np.array([5., 2., 4., 4., 4., 300.]).reshape((-1, 1))
-        self.v_range = np.array([[-1.0, 1.0], [throttle_min, throttle_max]])
+        self.v_range = np.array([[steer_min, steer_max], [throttle_min, throttle_max]])
         self.slew_rate = np.array([[delta_steer_min, delta_steer_max], [delta_throttle_min, delta_throttle_max]])
         self.prob_lvl = 0.6
         self.load_k = 0
@@ -347,9 +351,10 @@ class CS_SMPC(rclpy.node.Node):
         if self.use_vk:
             self.chassis_command.velocity = u[1]
             self.motion_fields.velocity = True
-            self.chassis_command.curvature = u[0]
+            self.chassis_command.curvature = -u[0]
             self.motion_fields.curvature = True
             self.chassis_command.direction = MotionVk.MOTION_VK_FORWARD
+            self.motion_fields.direction = True
             self.chassis_command.fields_present = self.motion_fields
         else:
             self.chassis_command.steer_cmd = u[0]
