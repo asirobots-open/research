@@ -8,7 +8,7 @@ from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, 
 
 
 class Model:
-    def __init__(self, N, vehicle_centric=False, map_coords=False):
+    def __init__(self, N, vehicle_centric=False, map_coords=False, use_vk=False):
         #self.throttle = throttle_model.Net()
         #rospack = rospkg.RosPack()
         # package_path = rospack.get_path('autorally_private_control')
@@ -18,6 +18,8 @@ class Model:
         self.vehicle_centric = vehicle_centric
         self.map_coords = map_coords
         self.steering_gain = -0.06
+        self.use_vk = use_vk
+        self.delta_prev = 0.0
 
         print('waiting for map')
         while True:
@@ -93,62 +95,18 @@ class Model:
         while t < dt:
             beta = atan2(vy, vx)
             beta = atan(m_Vehicle_lR / lFR * tan(delta))
-
             V = sqrt(vx * vx + vy * vy)
-            # vFx = V * cos(beta - delta) + wz * m_Vehicle_lF * sin(delta)
-            # vFy = V * sin(beta - delta) + wz * m_Vehicle_lF * cos(delta)
-            # vRx = vx
-            # vRy = vy - wz * m_Vehicle_lR
-
-            # sEF = -(vFx - wF * m_Vehicle_rF) / (vFx) + tire_Sh
-            # muFx = tire_D * sin(tire_C * atan(tire_B * sEF - tire_E * (tire_B * sEF - atan(tire_B * sEF)))) + tire_Sv
-            # sEF = -(vRx - wR * m_Vehicle_rR) / (vRx) + tire_Sh
-            # muRx = tire_D * sin(tire_C * atan(tire_B * sEF - tire_E * (tire_B * sEF - atan(tire_B * sEF)))) + tire_Sv
-            #
-            # sEF = atan(vFy / abs(vFx)) + tire_Sh
-            # alpha = -sEF
-            # muFy = -tire_D * sin(tire_C * atan(tire_B * sEF - tire_E * (tire_B * sEF - atan(tire_B * sEF)))) + tire_Sv
-            # sEF = atan(vRy / abs(vRx)) + tire_Sh
-            # alphaR = -sEF
-            # muRy = -tire_D * sin(tire_C * atan(tire_B * sEF - tire_E * (tire_B * sEF - atan(tire_B * sEF)))) + tire_Sv
-
-            # sFx = np.where(wF > 0, (vFx - wF * m_Vehicle_rF) / (wF * m_Vehicle_rF), 0)
-            # sRx = np.where(wR > 0, (vRx - wR * m_Vehicle_rR) / (wR * m_Vehicle_rR), 0)
-            # # sFy = np.where(vFx > 0, (1 + sFx) * vFy / vFx, 0)
-            # # sRy = np.where(vRx > 0, (1 + sRx) * vRy / vRx, 0)
-            # sFy = np.where(vFx > 0, vFy / (wF * m_Vehicle_rF), 0)
-            # sRy = np.where(vRx > 0, vRy / (wR * m_Vehicle_rR), 0)
-            #
-            # sF = np.sqrt(sFx * sFx + sFy * sFy) + 1e-2
-            # sR = np.sqrt(sRx * sRx + sRy * sRy) + 1e-2
-            #
-            # muF = tire_D * sin(tire_C * atan(tire_B * sF))
-            # muR = tire_D * sin(tire_C * atan(tire_B * sR))
-            #
-            # muFx = -sFx / sF * muF
-            # muFy = -sFy / sF * muF
-            # muRx = -sRx / sR * muR
-            # muRy = -sRy / sR * muR
-            #
-            # fFz = m_Vehicle_m * m_g * (m_Vehicle_lR - m_Vehicle_h * muRx) / (
-            #         m_Vehicle_lF + m_Vehicle_lR + m_Vehicle_h * (muFx * cos(delta) - muFy * sin(delta) - muRx))
-            # # fFz = m_Vehicle_m * m_g * (m_Vehicle_lR / 0.57)
-            # fRz = m_Vehicle_m * m_g - fFz
-            #
-            # fFx = fFz * muFx
-            # fRx = fRz * muRx
-            # fFy = fFz * muFy
-            # fRy = fRz * muRy
-            #
-            # ax = ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
-            #
-            # dot_X =cos(psi)*vx - sin(psi)*vy
-            # dot_Y = sin(psi)*vx + cos(psi)*vy
 
             next_state = zeros_like(state)
-            next_state[:, 0] = vx + deltaT * 10.0 * T#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
+            if self.use_vk:
+                next_state[:, 0] = input[:, 1]
+            else:
+                next_state[:, 0] = vx + deltaT * 10.0 * T#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
             next_state[:, 1] = vy #+ deltaT * ((fFx * sin(delta) + fFy * cos(delta) + fRy) / m_Vehicle_m - vx * wz)
-            next_state[:, 2] = wz + deltaT * (V / m_Vehicle_lR * sin(beta))
+            if self.use_vk:
+                next_state[:, 2] = vx * input[:, 0]
+            else:
+                next_state[:, 2] = wz + deltaT * (V / m_Vehicle_lR * sin(beta))
             if self.map_coords:
                 # print(Y)
                 # print(self.map_ca.s)

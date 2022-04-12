@@ -17,6 +17,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   msg/AsiClothoidPath.msg
   msg/AsiClothoid.msg
   msg/MapBounds.msg
+  msg/MotionVk.msg
+  msg/MotionVkFieldsPresent.msg
   DEPENDENCIES builtin_interfaces std_msgs
 )
 

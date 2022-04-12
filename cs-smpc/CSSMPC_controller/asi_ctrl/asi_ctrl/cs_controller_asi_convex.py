@@ -12,13 +12,8 @@ from nav_msgs.msg import Odometry, OccupancyGrid, Path
 from geometry_msgs.msg import PoseStamped, PointStamped, Point32
 from sensor_msgs.msg import PointCloud, ChannelFloat32
 from rcl_interfaces.msg import SetParametersResult
-from asi_msgs.msg import AsiTBSG
+from asi_msgs.msg import AsiTBSG, MotionVk, MotionVkFieldsPresent
 import rospkg
-# import roslib
-# roslib.load_manifest('autorally_private_control')
-#from dynamic_reconfigure.server import Server
-#from autorally_private_control.cfg import CSSMPC_paramsConfig
-#from autorally_msgs.msg import runstop
 from asi_msgs.msg import MapCA
 from asi_ctrl import polylines_asi
 from asi_msgs.msg import MapBounds
@@ -29,7 +24,6 @@ class CS_SMPC(rclpy.node.Node):
         super().__init__('CSSMPC')
         # self.goal_pub = self.create_publisher(PointCloud, "/goal", 1)
         # self.boundary_pub = self.create_publisher(Path, "/boundaries", 2)
-        self.chassis_command = AsiTBSG()
         self.begin = 0
 
         self.declare_parameter('max_speed', 5.0)
@@ -79,6 +73,8 @@ class CS_SMPC(rclpy.node.Node):
         self.command_topic = self.get_parameter('command_topic').get_parameter_value().string_value
         self.declare_parameter('steering_gain', -1.0)
         self.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
+        self.declare_parameter('use_vk', False)
+        self.use_vk = self.get_parameter('use_vk').get_parameter_value().bool_value
 
         self.n = 6
         self.m = 2
@@ -112,7 +108,7 @@ class CS_SMPC(rclpy.node.Node):
         # self.goal_pub.publish(self.goal)
         # self.server = Server(CSSMPC_paramsConfig, self.dynamic_reconfigure)
 
-        self.ar = cs_model.Model(self.N, vehicle_centric=False, map_coords=True)
+        self.ar = cs_model.Model(self.N, vehicle_centric=False, map_coords=True, use_vk=self.use_vk)
         self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
 
         if self.load_k:
@@ -149,7 +145,13 @@ class CS_SMPC(rclpy.node.Node):
         self.t2 = time.time()
         self.bounds_array = 100.0 * np.ones((2, int(self.bound_length / self.bound_stride)))
 
-        self.command_pub = self.create_publisher(AsiTBSG, self.command_topic, 1)
+        if self.use_vk:
+            chassis_cmd_msg_type = MotionVk
+            self.motion_fields = MotionVkFieldsPresent()
+        else:
+            chassis_cmd_msg_type = AsiTBSG
+        self.chassis_command = chassis_cmd_msg_type()
+        self.command_pub = self.create_publisher(chassis_cmd_msg_type, self.command_topic, 1)
         self.path_pub = self.create_publisher(Path, "trajectory", 1)
         self.create_subscription(MapCA, "mapCA", self.odom_callback, 10)
         self.get_logger().info('subscribed to map odom')
@@ -342,15 +344,23 @@ class CS_SMPC(rclpy.node.Node):
         u = np.where(u > self.v_range[:, 1], self.v_range[:, 1], u)
         u = np.where(u < self.v_range[:, 0], self.v_range[:, 0], u)
         print('u', u)
-        self.chassis_command.steer_cmd = u[0]
-        if u[1] >= 0:
-            self.chassis_command.throttle_cmd = u[1]
-            self.chassis_command.brake_cmd = 0.00
+        if self.use_vk:
+            self.chassis_command.velocity = u[1]
+            self.motion_fields.velocity = True
+            self.chassis_command.curvature = u[0]
+            self.motion_fields.curvature = True
+            self.chassis_command.direction = MotionVk.MOTION_VK_FORWARD
+            self.chassis_command.fields_present = self.motion_fields
         else:
-            self.chassis_command.throttle_cmd = 0.00
-            self.chassis_command.brake_cmd = -1.0 *u[1]
-        self.chassis_command.header.stamp = self.get_clock().now().to_msg()
-        # self.chassis_command.sender = "CSSMPC"
+            self.chassis_command.steer_cmd = u[0]
+            if u[1] >= 0:
+                self.chassis_command.throttle_cmd = u[1]
+                self.chassis_command.brake_cmd = 0.00
+            else:
+                self.chassis_command.throttle_cmd = 0.00
+                self.chassis_command.brake_cmd = -1.0 *u[1]
+            self.chassis_command.header.stamp = self.get_clock().now().to_msg()
+            # self.chassis_command.sender = "CSSMPC"
         self.command_pub.publish(self.chassis_command)
         return y
 
