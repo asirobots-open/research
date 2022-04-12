@@ -75,6 +75,8 @@ class CS_SMPC(rclpy.node.Node):
         self.command_topic = self.get_parameter('command_topic').get_parameter_value().string_value
         self.declare_parameter('steering_gain', -1.0)
         self.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
+        self.declare_parameter('acceleration_gain', 10.0)
+        self.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
         self.declare_parameter('use_vk', False)
         self.use_vk = self.get_parameter('use_vk').get_parameter_value().bool_value
 
@@ -104,6 +106,7 @@ class CS_SMPC(rclpy.node.Node):
 
         self.ar = cs_model.Model(self.N, vehicle_centric=False, map_coords=True, use_vk=self.use_vk)
         self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
+        self.ar.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
 
         if self.load_k:
             self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
@@ -176,6 +179,7 @@ class CS_SMPC(rclpy.node.Node):
         self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
 
         self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
+        self.ar.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
 
     def odom_callback(self, map_msg):
         # self.get_logger().info('map odom received')
@@ -353,6 +357,7 @@ class CS_SMPC(rclpy.node.Node):
                 self.chassis_command.brake_cmd = -1.0 *u[1]
             self.chassis_command.header.stamp = self.get_clock().now().to_msg()
             # self.chassis_command.sender = "CSSMPC"
+            self.chassis_command.gear_cmd = 1
         self.command_pub.publish(self.chassis_command)
         return y
 

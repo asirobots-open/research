@@ -18,6 +18,7 @@ class Model:
         self.vehicle_centric = vehicle_centric
         self.map_coords = map_coords
         self.steering_gain = -0.06
+        self.acceleration_gain = 10.0
         self.use_vk = use_vk
         self.delta_prev = 0.0
 
@@ -86,7 +87,7 @@ class Model:
         # delta = input[:, 0]
         steering = input[:, 0]
         delta = self.steering_gain * steering + m_Vehicle_cSteering
-        T = input[:, 1]#np.maximum(input[:, 1], 0)
+        T = self.acceleration_gain * input[:, 1]#np.maximum(input[:, 1], 0)
 
         min_velo = 0.1
         deltaT = 0.01
@@ -101,7 +102,7 @@ class Model:
             if self.use_vk:
                 next_state[:, 0] = input[:, 1]
             else:
-                next_state[:, 0] = vx + deltaT * 10.0 * T#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
+                next_state[:, 0] = vx + deltaT * T#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
             next_state[:, 1] = vy #+ deltaT * ((fFx * sin(delta) + fFy * cos(delta) + fRy) / m_Vehicle_m - vx * wz)
             if self.use_vk:
                 next_state[:, 2] = vx * input[:, 0]
