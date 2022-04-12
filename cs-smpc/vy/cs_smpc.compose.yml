@@ -27,7 +27,7 @@ services:
       - ${RVIZFILES}/rviz:/rviz
       - $CALIBRATION>calibration.json:/calibration.json:ro
       - read_only: true
-        source: $PARAMS/cssmpc_configs/default_params.yaml
+        source: $PARAMS/cssmpc_configs/${CALIBRATION.cssmpc_params}
         target: /params.yaml
         type: bind
 

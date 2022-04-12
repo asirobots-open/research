@@ -9,6 +9,10 @@
       "type": "string"
     },
     {
+      "name": "cssmpc_params",
+      "type": "string"
+    },
+    {
       "name": "map",
       "type": "definition:map2d"
     },
