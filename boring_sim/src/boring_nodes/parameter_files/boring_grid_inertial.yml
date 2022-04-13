@@ -4,7 +4,7 @@
     front_cells: 60
     back_cells: 60
     inertial_frame: true
-    odometry_topic: odometry_teleop
-    command_topic: vcu_wrench
+    odometry_topic: odometry_teleop_64
+    command_topic: tbsg_cmd
     plan_topic: planned_path
     viz_topic: vizplan
