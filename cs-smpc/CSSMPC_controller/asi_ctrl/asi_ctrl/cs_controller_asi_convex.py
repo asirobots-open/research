@@ -8,6 +8,7 @@ from asi_ctrl import cs_model_asi as cs_model
 from asi_ctrl import cs_solver_obstacle as cs_solver
 import rclpy
 import rclpy.node
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 from nav_msgs.msg import Odometry, OccupancyGrid, Path
 from geometry_msgs.msg import PoseStamped, PointStamped, Point32
 from sensor_msgs.msg import PointCloud, ChannelFloat32
@@ -139,17 +140,21 @@ class CS_SMPC(rclpy.node.Node):
         self.t2 = time.time()
         self.bounds_array = 100.0 * np.ones((2, int(self.bound_length / self.bound_stride)))
 
+        qos_profile = QoSProfile(depth=10)
+        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT  # .RELIABLE
+        qos_profile.history = QoSHistoryPolicy.KEEP_LAST  # .KEEP_ALL
+        qos_profile.durability = QoSDurabilityPolicy.VOLATILE  # .TRANSIENT_LOCAL
         if self.use_vk:
             chassis_cmd_msg_type = MotionVk
             self.motion_fields = MotionVkFieldsPresent()
         else:
             chassis_cmd_msg_type = AsiTBSG
         self.chassis_command = chassis_cmd_msg_type()
-        self.command_pub = self.create_publisher(chassis_cmd_msg_type, self.command_topic, 1)
-        self.path_pub = self.create_publisher(Path, "trajectory", 1)
-        self.create_subscription(MapCA, "mapCA", self.odom_callback, 10)
+        self.command_pub = self.create_publisher(chassis_cmd_msg_type, self.command_topic, qos_profile)
+        self.path_pub = self.create_publisher(Path, "trajectory", qos_profile)
+        self.create_subscription(MapCA, "mapCA", self.odom_callback, qos_profile)
         self.get_logger().info('subscribed to map odom')
-        self.create_subscription(MapBounds, "bounds_array", self.bounds_callback, 2)
+        self.create_subscription(MapBounds, "bounds_array", self.bounds_callback, qos_profile)
 
     def dynamic_reconfigure(self):
         self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value

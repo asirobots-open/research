@@ -12,9 +12,11 @@ Panels:
         - /Path1/Topic1
         - /Path1/Offset1
         - /Map1/Topic1
+        - /Path2
         - /Path2/Topic1
         - /TF1/Frames1
         - /Path3
+        - /Path3/Topic1
       Splitter Ratio: 0.5
     Tree Height: 507
   - Class: rviz_common/Selection
@@ -165,7 +167,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /ius0/trajectory
       Value: true
     - Class: rviz_default_plugins/TF
@@ -212,7 +214,7 @@ Visualization Manager:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /ius0/boundaries
       Value: true
   Enabled: true

@@ -7,6 +7,7 @@ import sys
 import copy
 import rclpy
 import rclpy.node
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 import scipy.interpolate
 from nav_msgs.msg import Odometry, Path, OccupancyGrid
 from geometry_msgs.msg import PoseStamped
@@ -59,17 +60,17 @@ class Map_CA(rclpy.node.Node):
         self.wf = 0.1
         self.wr = 0.1
 
-        latching_qos = 10# rclpy.qos.QoSProfile(depth=1,
-                                            # durability=rclpy.qos.QoSDurabilityPolicy.TRANSIENT_LOCAL,
-                                            # reliability=rclpy.qos.QoSReliabilityPolicy.RELIABLE)
-        self.create_subscription(AsiClothoidPath, self.plan_topic, self.path_cb, latching_qos)
-        self.path_pub = self.create_publisher(Path, "/smoothed_path", latching_qos)
-        self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, 1)
-        # rospy.Subscriber("/wheelSpeeds", wheelSpeeds, self.wheel_cb)
-        self.mapca_pub = self.create_publisher(MapCA, 'mapCA', 10)
-        self.create_subscription(OccupancyGrid, "/ius0/terrain_cost", self.obstacle_callback, 1)
-        self.boundary_pub = self.create_publisher(Path, "boundaries", 10)
-        self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", 2)
+        qos_profile = QoSProfile(depth=10)
+        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT  # .RELIABLE
+        qos_profile.history = QoSHistoryPolicy.KEEP_LAST  # .KEEP_ALL
+        qos_profile.durability = QoSDurabilityPolicy.VOLATILE  # .TRANSIENT_LOCAL
+        self.create_subscription(AsiClothoidPath, self.plan_topic, self.path_cb, qos_profile)
+        self.path_pub = self.create_publisher(Path, "/smoothed_path", qos_profile)
+        self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, qos_profile)
+        self.mapca_pub = self.create_publisher(MapCA, 'mapCA', qos_profile)
+        self.create_subscription(OccupancyGrid, "terrain_cost", self.obstacle_callback, qos_profile)
+        self.boundary_pub = self.create_publisher(Path, "boundaries", qos_profile)
+        self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", qos_profile)
 
     def localize(self, M, psi):
         # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)
