@@ -19,10 +19,10 @@ class BoringPlanner(Node):
         viz_topic = self.get_parameter('viz_topic').get_parameter_value().string_value
         planpth = self.get_parameter('calibration_file').get_parameter_value().string_value
 
-        qos_profile = 10 #QoSProfile(depth=10)
-        # qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
-        # qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
-        # qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+        qos_profile = QoSProfile(depth=10)
+        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
 
         self.radius = 10
         self.MYCLOTHOIDS = None
