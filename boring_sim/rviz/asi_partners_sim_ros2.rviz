@@ -94,7 +94,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /ius0/odometry_teleop
+        Value: /odometry_teleop
       Value: true
     - Alpha: 1
       Buffer Length: 3
@@ -121,7 +121,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /ius0/vizplan
+        Value: /vizplan
       Value: true
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
@@ -134,13 +134,13 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /ius0/terrain_cost
+        Value: /terrain_cost
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /ius0/terrain_cost_updates
+        Value: /terrain_cost_updates
       Use Timestamp: false
       Value: true
     - Alpha: 1
@@ -168,14 +168,14 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /ius0/trajectory
+        Value: /trajectory
       Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        ius0/base_link:
+        base_link:
           Value: true
         map:
           Value: true
@@ -186,7 +186,7 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          ius0/base_link:
+          base_link:
             {}
       Update Interval: 0
       Value: true
@@ -215,7 +215,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /ius0/boundaries
+        Value: /boundaries
       Value: true
   Enabled: true
   Global Options:

@@ -5,7 +5,7 @@
     "ros2_parameters":"boring_grid_inertial.yml,main_track.yml",
     "viapoints": "",
     "path": "object:asi_main_path",
-    "namespace": "ius0",
+    "namespace": " ",
     "nodes": "boring_grid,boring_tfpub,boring_planner,boring_ackermann",
     "cssmpc_params": "asi_main_params.yaml",
     "license_server": "surfacesim",

@@ -8,6 +8,8 @@ if __name__ == '__main__':
     calfile = sys.argv[1]
     cal = json.loads(Path(calfile).read_text())
     ns = cal.get('namespace','')
+    if ns == ' ':
+        ns = ''
     parms = cal.get('ros2_parameters','').split(',')
     for node in cal.get('nodes',[]).split(','):
         cmd = ['ros2','run','boring_nodes',node.strip(),'--ros-args']
