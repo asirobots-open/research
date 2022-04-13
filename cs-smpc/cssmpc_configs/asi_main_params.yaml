@@ -24,9 +24,17 @@
        back_cells: 60
        inertial_frame: true
 
+       bound_ceiling: 20.0
+       bound_length: 25.0
+       bound_stride: 1.0
+       obs_buffer: 1.5
+       min_track_width: 6.0
+       obs_method: 2
+
        odometry_topic: odometry_teleop
        command_topic: vcu_wrench
        plan_topic: planned_path
        viz_topic: vizplan
 
        steering_gain: -1.0
+       acceleration_gain: 10.0

@@ -36,12 +36,19 @@ class Map_CA(rclpy.node.Node):
         self.grid_resolution = self.get_parameter('grid_resolution').get_parameter_value().double_value
         self.declare_parameter('inertial_frame', False)
         self.inertial_frame = self.get_parameter('inertial_frame').get_parameter_value().bool_value
-        self.declare_parameter('bound_celing', 20.0)
-        self.bound_celing = self.get_parameter('bound_celing').get_parameter_value().double_value
+        self.declare_parameter('bound_ceiling', 20.0)
+        self.bound_ceiling = self.get_parameter('bound_ceiling').get_parameter_value().double_value
         self.declare_parameter('bound_length', 25.0)
         self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
         self.declare_parameter('bound_stride', 1.0)
         self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
+        self.declare_parameter('obs_buffer', 1.5)
+        self.obs_buffer = self.get_parameter('obs_buffer').get_parameter_value().double_value
+        self.declare_parameter('min_track_width', 6.0)
+        self.min_track_width = self.get_parameter('min_track_width').get_parameter_value().double_value
+
+        self.declare_parameter('obs_method', 1)
+        self.obs_method = self.get_parameter('obs_method').get_parameter_value().integer_value
         self.declare_parameter('odometry_topic', '')
         self.odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
         self.declare_parameter('plan_topic', '')
@@ -182,12 +189,6 @@ class Map_CA(rclpy.node.Node):
         self.mapca_pub.publish(self.mapca)
         # self.get_logger().info('published map odom')
 
-        # print(time.time() - start)
-
-    # def wheel_cb(self, speeds):
-    #     self.wf = (speeds.lfSpeed + speeds.rfSpeed) / 2.0
-    #     self.wr = (speeds.lbSpeed + speeds.rbSpeed) / 2.0
-
     def path_cb(self, path):
         self.get_logger().info("received path")
         num_segs = len(path.segments) - 2
@@ -266,10 +267,12 @@ class Map_CA(rclpy.node.Node):
         self.start = True
         return p_curvature, p_speed, self.s
 
-    def convert_obs_to_constraints(self, obs_locs, new_method=True):
-        ceiling = self.bound_celing
+    def convert_obs_to_constraints(self, obs_locs):
+        ceiling = self.bound_ceiling
         bound_length = self.bound_length
         bound_stride = self.bound_stride
+        obstacle_buffer = self.obs_buffer
+        half_min_track_width = self.min_track_width / 2.0
         boundary_dists = ceiling * np.ones((2, int(bound_length / bound_stride)))
         # boundary_dists = ceiling * np.ones((2, self.N))
         try:
@@ -279,35 +282,39 @@ class Map_CA(rclpy.node.Node):
                 obs_locs_map[:, ii] = np.array([norm_dist, s_dist])
             # print(obs_locs_map[:, :])
             # print(self.state[-2:])
-            try:
-                left_bound = np.min(obs_locs_map[0, obs_locs_map[0, :] > 0.0])
-            except ValueError:
-                left_bound = ceiling
-            try:
-                right_bound = np.max(obs_locs_map[0, obs_locs_map[0, :] < 0.0])
-            except ValueError:
-                right_bound = -ceiling
-            # self.get_logger().info(str(left_bound) + ', ' + str(right_bound))
-            if abs(left_bound) < 0.1 and abs(right_bound) < 0.1:
-                left_bound = np.max(obs_locs_map[0, obs_locs_map[0, :] > 0.0])
-                right_bound = np.min(obs_locs_map[0, obs_locs_map[0, :] > 0.0]) + 0.5
-            # if np.abs(right_bound) < np.abs(left_bound) or len(left_bound) == 0:
-            #     left_bound = ceiling
-            # elif len(right_bound) == 0:
-            #     right_bound = -ceiling
-            s_start = np.min(obs_locs_map[1, :])
-            s_end = np.max(obs_locs_map[1, :])
-            # self.get_logger().info(str((s_start, s_end, left_bound, right_bound)))
-            # k_start = np.argmin(np.abs(xs[-1, :] - s_start))
-            # k_end = np.argmin(np.abs(xs[-1, :] - s_end))
-            # dist_start = np.min(np.abs(xs[-1, :] - s_start))
-            # dist_end = np.min(np.abs(xs[-1, :] - s_end))
-            # # if dist_start and dist_end < 10.0:
-            # boundary_dists[:, k_start:k_end+1] = np.vstack((left_bound, -1*right_bound))
         except (IndexError, ValueError) as e:
             self.get_logger().info('no obs')
             return boundary_dists
-        if new_method:
+        if self.obs_method == 2:
+            path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
+            left_obs = obs_locs_map[:, obs_locs_map[0, :] > 0.0]
+            right_obs = obs_locs_map[:, obs_locs_map[0, :] < 0.0]
+            if left_obs[:, left_obs[0, :] < half_min_track_width].shape[1] > right_obs[:, right_obs[0, :] > -half_min_track_width].shape[1]:
+                veer = 1
+            else:
+                veer = 0
+            for ii, s in enumerate(path_ss):
+                left_indexes = np.where(np.abs(left_obs[1, :] - s) < 1*self.bound_stride)[0]
+                right_indexes = np.where(np.abs(right_obs[1, :] - s) < 1*self.bound_stride)[0]
+                try:
+                    left_ii = np.argmin(np.abs(1*np.abs(left_obs[1, left_indexes] - s)**1 + np.abs(left_obs[0, left_indexes])**1))
+                    left_bound = left_obs[0, left_indexes[left_ii]]
+                except ValueError:
+                    left_bound = ceiling
+                try:
+                    right_ii = np.argmin(np.abs(1*np.abs(right_obs[1, right_indexes] - s)**1 + np.abs(right_obs[0, right_indexes])**1))
+                    right_bound = right_obs[0, right_indexes[right_ii]]
+                except ValueError:
+                    right_bound = -ceiling
+                if abs(left_bound) < half_min_track_width or abs(right_bound) < half_min_track_width:
+                    if veer == 0:
+                        left_bound = np.max(left_obs[0, :])
+                        right_bound = obstacle_buffer # + np.max(left_obs[0, left_obs[0, :] < half_min_track_width])
+                    else:
+                        left_bound = - obstacle_buffer # + np.min(right_obs[0, right_obs[0, :] > -half_min_track_width])
+                        right_bound = np.min(right_obs[0, :])
+                boundary_dists[:, ii:ii+1] = np.vstack((left_bound, -1 * right_bound))
+        elif self.obs_method == 1:
             path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
             left_obs = obs_locs_map[:, obs_locs_map[0, :] > 0.0]
             right_obs = obs_locs_map[:, obs_locs_map[0, :] < 0.0]
@@ -329,8 +336,26 @@ class Map_CA(rclpy.node.Node):
                 if abs(left_bound) < 1.0 or abs(right_bound) < 1.0:
                     left_bound = np.max(left_obs[0, :])
                     right_bound = np.min(left_obs[0, :]) + 0.5
-                boundary_dists[:, ii:ii+1] = np.vstack((left_bound, -1 * right_bound))
+                boundary_dists[:, ii:ii + 1] = np.vstack((left_bound, -1 * right_bound))
         else:
+            try:
+                left_bound = np.min(obs_locs_map[0, obs_locs_map[0, :] > 0.0])
+            except ValueError:
+                left_bound = ceiling
+            try:
+                right_bound = np.max(obs_locs_map[0, obs_locs_map[0, :] < 0.0])
+            except ValueError:
+                right_bound = -ceiling
+            # self.get_logger().info(str(left_bound) + ', ' + str(right_bound))
+            if abs(left_bound) < 0.1 and abs(right_bound) < 0.1:
+                left_bound = np.max(obs_locs_map[0, obs_locs_map[0, :] > 0.0])
+                right_bound = np.min(obs_locs_map[0, obs_locs_map[0, :] > 0.0]) + 0.5
+            # if np.abs(right_bound) < np.abs(left_bound) or len(left_bound) == 0:
+            #     left_bound = ceiling
+            # elif len(right_bound) == 0:
+            #     right_bound = -ceiling
+            s_start = np.min(obs_locs_map[1, :])
+            s_end = np.max(obs_locs_map[1, :])
             k_start = np.argmin(np.abs(np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride) - s_start))
             k_end = np.argmin(np.abs(np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride) - s_end))
             boundary_dists[:, k_start:k_end + 1] = np.vstack((left_bound, -1 * right_bound))
@@ -422,37 +447,6 @@ class Map_CA(rclpy.node.Node):
         bounds_msg.array.data = data
         self.bounds_array_pub.publish(bounds_msg)
         return
-
-
-# def map_publish():
-#     map_pub = rospy.Publisher('/path', AsiClothoidPath, queue_size=2)
-#     path = AsiClothoidPath()
-#     package_path = '/autorally_private_control'
-#     file_name = 'CCRF_2021-01-10.npz'
-#     track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
-#     p_x = track_dict['X_cen_smooth']
-#     p_y = track_dict['Y_cen_smooth']
-#     file_name = 'ccrf_track_optimal_1000s_15m.npz'
-#     track_dict = np.load(package_path + '/src/maps/CCRF/' + file_name)
-#     try:
-#         p_x = track_dict['X_cen_smooth']
-#         p_y = track_dict['Y_cen_smooth']
-#     except KeyError:
-#         p_x = track_dict['pts'][:, 0]
-#         p_y = track_dict['pts'][:, 1]
-#         rho = track_dict['curvature']
-#     num_segments = len(rho)
-#     for ii in range(num_segments):
-#         clothoid = AsiClothoid()
-#         clothoid.start_x_m = p_x[ii]
-#         clothoid.start_y_m = p_y[ii]
-#         clothoid.start_curvature_inv_m = rho[ii]
-#         path.segments.append(clothoid)
-#     path.header.stamp = rospy.Time.now()
-#     time.sleep(1)
-#     map_pub.publish(path)
-#     time.sleep(1)
-#     print('pubbed')
 
 
 def main():

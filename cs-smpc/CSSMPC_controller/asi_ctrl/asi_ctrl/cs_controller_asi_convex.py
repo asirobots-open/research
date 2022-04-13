@@ -66,8 +66,8 @@ class CS_SMPC(rclpy.node.Node):
         self.declare_parameter('R_throttle', 2.0)
         R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
         self.create_timer(1.0, self.dynamic_reconfigure)
-        self.declare_parameter('bound_celing', 20.0)
-        self.bound_ceiling = self.get_parameter('bound_celing').get_parameter_value().double_value
+        self.declare_parameter('bound_ceiling', 20.0)
+        self.bound_ceiling = self.get_parameter('bound_ceiling').get_parameter_value().double_value
         self.declare_parameter('bound_length', 25.0)
         self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
         self.declare_parameter('bound_stride', 1.0)
