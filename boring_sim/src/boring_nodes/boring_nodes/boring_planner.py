@@ -29,7 +29,7 @@ class BoringPlanner(Node):
         self.default(planpth)
         self.cmd_pub = self.create_publisher(AsiClothoidPath, plan_topic, qos_profile=qos_profile)
         self.vis_pub = self.create_publisher(Path, viz_topic, qos_profile=qos_profile)
-        timer_period = 2  # seconds
+        timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def default(self,planpth):
@@ -87,7 +87,7 @@ class BoringPlanner(Node):
             self.vis_pub.publish(self.plotarcs(arcs))
             self.get_logger().info('Publishing clothoid path containing {} clothoids!'.format(len(self.MYCLOTHOIDS)))
             self.cmd_pub.publish(self.pathplan(self.MYCLOTHOIDS))
-        # self.MYCLOTHOIDS = None
+        self.MYCLOTHOIDS = None
 
 def main(args=None):
     rclpy.init(args=args)
