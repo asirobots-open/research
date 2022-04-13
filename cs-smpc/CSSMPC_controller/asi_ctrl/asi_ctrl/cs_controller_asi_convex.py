@@ -325,7 +325,7 @@ class CS_SMPC(rclpy.node.Node):
             trajectory.header.stamp = path_time
             self.path_pub.publish(trajectory)
         except RuntimeError:
-            V = np.tile(np.array([0, 0.1]).reshape((-1, 1)), (self.N, 1)).flatten()
+            V = np.tile(np.array([0, -0.1]).reshape((-1, 1)), (self.N, 1)).flatten()
             X_bar = np.dot(A, xs[:, 0]) + np.dot(B, V) + d.flatten()
             x_bar = X_bar.reshape((self.n, self.N), order='F')
             print('error x_bar', x_bar)

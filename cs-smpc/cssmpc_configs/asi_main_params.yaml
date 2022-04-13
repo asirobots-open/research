@@ -4,7 +4,7 @@
        terminal_speed: -1.0
        horizon_length: 20
        time_step: 0.1
-       throttle_min: -0.1
+       throttle_min: -0.2
        throttle_max: 0.4
        delta_steer_min: -0.05
        delta_steer_max: 0.05
