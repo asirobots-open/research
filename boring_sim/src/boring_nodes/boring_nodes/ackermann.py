@@ -101,11 +101,15 @@ class Ackermann():
 def test1():
     from matplotlib import pyplot as plt
     ack = Ackermann()
+    ack.model.steer_pgain = 700.0;        # 
+    ack.model.steer_dgain = 20.0;         # slightly underdamped
+
     ack.model.drag_multiplier = 40
     dt = 0.05
     state = []
+    target_steer_angle = []
     t = []
-    while ack.t < 30:
+    while ack.t < 20:
         if ack.t > 0 and ack.t < 10:
             ack.command.propulsive_force = ack.model.mass*0.5
             ack.command.resistive_force = 0
@@ -114,8 +118,10 @@ def test1():
             ack.command.resistive_force = ack.model.mass*0.4
             ack.command.propulsive_force = 0
             ack.command.target_steer_angle = 0
+        # ack.command.target_steer_angle = 0.4*math.sin(ack.t)
         ack.step(dt)
         state.append(ack.state.getState())
+        target_steer_angle.append(ack.command.target_steer_angle)
         t.append(ack.t)
 
     fig, (ax1, ax2, ax3) = plt.subplots(3)
@@ -125,9 +131,11 @@ def test1():
     ax1.axis('equal')
     ax1.set_xlabel('x (m)')
     ax1.set_ylabel('y (m)')
-    ax2.plot(t,statet[0], t,statet[1], t,statet[3], label=['x (m)','y (m)','v (m/s)'])    
+    ax2.plot(t,statet[0], t,statet[1], t,statet[3])
+    ax2.legend(['x (m)','y (m)','v (m/s)'])
     ax2.set_xlabel('time (s)')
-    ax3.plot(t,statet[4], t,statet[5], label=['steer angle (rad)','steer rate (rad/sec)'])    
+    ax3.plot(t,statet[4], t,statet[5], t,target_steer_angle)    
+    ax3.legend(['steer angle (rad)','steer rate (rad/sec)','target steer angle (rad)'])
     ax3.set_xlabel('time (s)')
     plt.show()
 

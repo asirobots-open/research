@@ -6,8 +6,8 @@
        time_step: 0.1
        throttle_min: -0.2
        throttle_max: 0.4
-       delta_steer_min: -0.05
-       delta_steer_max: 0.05
+       delta_steer_min: -0.01
+       delta_steer_max: 0.01
        delta_throttle_min: -0.2
        delta_throttle_max: 0.05
        Q_speed: 100.0
@@ -36,5 +36,7 @@
        plan_topic: planned_path
        viz_topic: vizplan
 
-       steering_gain: -1.0
+       steering_gain: -1.2
+       steer_min: -0.785
+       steer_max: 0.785
        acceleration_gain: 10.0

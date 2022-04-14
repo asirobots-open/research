@@ -6,8 +6,8 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Odometry1
         - /Odometry1/Shape1
-        - /Path1
         - /Path1/Topic1
         - /Path1/Offset1
         - /Map1/Topic1
@@ -75,7 +75,7 @@ Visualization Manager:
           Value: true
         Value: true
       Enabled: true
-      Keep: 100
+      Keep: 5
       Name: Odometry
       Position Tolerance: 0.10000000149011612
       Shape:
@@ -93,7 +93,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /odometry_teleop_64
+        Value: /odometry_teleop
       Value: true
     - Alpha: 1
       Buffer Length: 3
@@ -120,7 +120,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /wrench_cmd
+        Value: /vizplan
       Value: true
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
@@ -174,13 +174,19 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        base_link:
+          Value: true
+        map:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        map:
+          base_link:
+            {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -262,11 +268,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 7.766995906829834
-      Target Frame: <Fixed Frame>
+      Scale: 13.732091903686523
+      Target Frame: base_link
       Value: TopDownOrtho (rviz_default_plugins)
-      X: -16.425018310546875
-      Y: 30.9741153717041
+      X: -0.6216697692871094
+      Y: 3.4722366333007812
     Saved: ~
 Window Geometry:
   Displays:
