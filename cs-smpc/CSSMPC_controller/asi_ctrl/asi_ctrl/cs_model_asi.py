@@ -5,6 +5,7 @@ from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, 
 #import throttle_model
 #import rospkg
 # import polylines_asi
+import matplotlib.pyplot as plt
 
 
 class Model:
@@ -78,8 +79,8 @@ class Model:
         X = state[:, 4]
         Y = state[:, 5]
 
-        if (vx < 0.1).any():
-            vx = np.maximum(vx, 0.1)
+        # if (vx < 0.1).any():
+        vx = np.maximum(vx, 0.0)
 
         m_Vehicle_kSteering = -0.06  # -pi / 180 * 18.7861
         m_Vehicle_cSteering = -0.000  # 0.0109
@@ -102,12 +103,12 @@ class Model:
             if self.use_vk:
                 next_state[:, 0] = input[:, 1]
             else:
-                next_state[:, 0] = vx + deltaT * T#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
+                next_state[:, 0] = vx + deltaT * (4.0*T + 0.22)#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
             next_state[:, 1] = vy #+ deltaT * ((fFx * sin(delta) + fFy * cos(delta) + fRy) / m_Vehicle_m - vx * wz)
             if self.use_vk:
                 next_state[:, 2] = vx * input[:, 0]
             else:
-                next_state[:, 2] = wz + deltaT * (V / m_Vehicle_lR * sin(beta))
+                next_state[:, 2] = (V / m_Vehicle_lR * sin(beta))
             if self.map_coords:
                 # print(Y)
                 # print(self.map_ca.s)
@@ -234,3 +235,38 @@ class Model:
             dd[ii*nx:(ii+1)*nx, :] = dd_i_row
 
         return AA, BB, dd, DD
+
+
+if __name__ == '__main__':
+    path = '../../bags2/rosbag2_2022_04_14-22_34_36/rosbag2_2022_04_14-22_34_36.npz'
+    data = np.load(path)
+    vxs = data['vx']
+    yaws = data['yaw']
+    Xs = data['X']
+    Ys = data['Y']
+    deltas = data['delta']
+    throttles = data['throttle']
+    brakes = data['brake']
+
+    start_ii = 500
+    end_ii = 1400
+    controls = np.vstack((deltas, throttles-brakes))[:, start_ii:end_ii]
+    states = np.vstack((vxs, np.zeros_like(vxs), np.zeros_like(vxs), yaws, Xs, Ys))[:, start_ii:end_ii]
+    model = Model(1)
+    model.steering_gain = -0.64
+    model.acceleration_gain = 1.0
+    predicted_states = np.zeros_like(states)
+    state = states[:, 0:1]
+    predicted_states[:, 0:1] = state
+    for ii in range(states.shape[1] - 1):
+        new_state = model.update_dynamics(state, controls[:, ii:ii+1], 0.1)
+        new_state[0:1, 0] = states[0:1, ii+1]
+        predicted_states[:, ii+1:ii+2] = new_state
+        state = new_state.copy()
+    plt.plot(states[0, :])
+    plt.plot(controls[1, :])
+    plt.plot(predicted_states[0, :])
+    plt.show()
+    plt.plot(states[-2, :], states[-1, :])
+    plt.plot(predicted_states[-2, :], predicted_states[-1, :])
+    plt.show()
