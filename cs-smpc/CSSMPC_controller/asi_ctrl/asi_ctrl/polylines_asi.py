@@ -224,17 +224,23 @@ class Map_CA(rclpy.node.Node):
         self.s = np.cumsum(np.linalg.norm(dif_vecs, axis=0))
         # print(self.p.shape)
         closed_ps = np.append(self.p, self.p[:, 0:1], axis=1)
-        closed_speeds = np.append(self.p_speeds, self.p_speeds[:, 0:1], axis=1)
-        tck, u = scipy.interpolate.splprep(np.vstack((closed_ps, closed_speeds)), u=None, s=0.0, per=1)
+        closed_speeds = np.append(self.p_speeds, self.p_speeds[:, 0:1], axis=1).flatten()
+        self.get_logger().info(str(closed_speeds))
+        tck, u = scipy.interpolate.splprep(closed_ps, u=None, s=0.0, per=1)
         num_steps = self.num_smoothed_path_points
         u_new = np.linspace(u.min(), u.max(), num_steps)
-        x_new, y_new, speed_new = scipy.interpolate.splev(u_new, tck, der=0)
-        dx, dy, _ = scipy.interpolate.splev(u_new, tck, der=1)
-        ddxx, ddyy, _ = scipy.interpolate.splev(u_new, tck, der=2)
+        x_new, y_new = scipy.interpolate.splev(u_new, tck, der=0)
+        f = scipy.interpolate.interp1d(np.arange(len(closed_speeds)), closed_speeds)
+        u_new = np.linspace(0, len(closed_speeds)-1, num_steps)
+        speed_new = f(u_new)
+        self.get_logger().info(str(speed_new))
+        u_new = np.linspace(u.min(), u.max(), num_steps)
+        dx, dy = scipy.interpolate.splev(u_new, tck, der=1)
+        ddxx, ddyy = scipy.interpolate.splev(u_new, tck, der=2)
         curvatures = (dx * ddyy - dy * ddxx) / (dx ** 2 + dy ** 2) ** (3 / 2)
         self.rho = curvatures
         self.p = np.array([x_new, y_new])
-        self.speeds = speed_new
+        self.speeds = speed_new.copy()
         dif_vecs = self.p[:, 1:] - self.p[:, :-1]
         self.dif_vecs = dif_vecs
         self.slopes = dif_vecs[1, :] / dif_vecs[0, :]
