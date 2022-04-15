@@ -5,8 +5,6 @@ from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, 
 #import throttle_model
 #import rospkg
 # import polylines_asi
-import matplotlib.pyplot as plt
-
 
 class Model:
     def __init__(self, N, vehicle_centric=False, map_coords=False, use_vk=False):
@@ -238,6 +236,7 @@ class Model:
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     path = '../../bags2/rosbag2_2022_04_14-22_34_36/rosbag2_2022_04_14-22_34_36.npz'
     data = np.load(path)
     vxs = data['vx']
