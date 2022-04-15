@@ -78,6 +78,10 @@ class CS_SMPC(rclpy.node.Node):
         self.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
         self.declare_parameter('acceleration_gain', 10.0)
         self.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
+        self.declare_parameter('steering_offset', 0.003)
+        self.steering_offset = self.get_parameter('steering_offset').get_parameter_value().double_value
+        self.declare_parameter('acceleration_offset', 0.0)
+        self.acceleration_offset = self.get_parameter('acceleration_offset').get_parameter_value().double_value
         self.declare_parameter('use_vk', False)
         self.use_vk = self.get_parameter('use_vk').get_parameter_value().bool_value
 
@@ -185,6 +189,8 @@ class CS_SMPC(rclpy.node.Node):
 
         self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
         self.ar.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
+        self.ar.steering_offset = self.get_parameter('steering_offset').get_parameter_value().double_value
+        self.ar.acceleration_offset = self.get_parameter('acceleration_offset').get_parameter_value().double_value
 
     def odom_callback(self, map_msg):
         # self.get_logger().info('map odom received')

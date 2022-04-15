@@ -16,13 +16,15 @@ class Model:
         self.N = N
         self.vehicle_centric = vehicle_centric
         self.map_coords = map_coords
-        self.steering_gain = -0.06
+        self.steering_gain = -0.60
+        self.steering_offset = 0.003
         self.acceleration_gain = 10.0
+        self.acceleration_offset = 0.0
         self.use_vk = use_vk
         self.delta_prev = 0.0
 
         print('waiting for map')
-        while True:
+        while map_coords:
             try:
                 path = np.load('planned_path.npz')
                 self.s = path['s']
@@ -80,12 +82,12 @@ class Model:
         # if (vx < 0.1).any():
         vx = np.maximum(vx, 0.0)
 
-        m_Vehicle_kSteering = -0.06  # -pi / 180 * 18.7861
-        m_Vehicle_cSteering = -0.000  # 0.0109
+        # self.steering_gain = -0.60  # -pi / 180 * 18.7861
+        # m_Vehicle_cSteering = 0.003  # 0.0109
         throttle_factor = 0.38
         # delta = input[:, 0]
         steering = input[:, 0]
-        delta = self.steering_gain * steering + m_Vehicle_cSteering
+        delta = self.steering_gain * steering + self.steering_offset
         T = self.acceleration_gain * input[:, 1]#np.maximum(input[:, 1], 0)
 
         min_velo = 0.1
@@ -101,7 +103,7 @@ class Model:
             if self.use_vk:
                 next_state[:, 0] = input[:, 1]
             else:
-                next_state[:, 0] = vx + deltaT * (4.0*T + 0.22)#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
+                next_state[:, 0] = vx + deltaT * (4.0*T + self.acceleration_offset)#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
             next_state[:, 1] = vy #+ deltaT * ((fFx * sin(delta) + fFy * cos(delta) + fRy) / m_Vehicle_m - vx * wz)
             if self.use_vk:
                 next_state[:, 2] = vx * input[:, 0]
@@ -254,6 +256,7 @@ if __name__ == '__main__':
     model = Model(1)
     model.steering_gain = -0.64
     model.acceleration_gain = 1.0
+    model.steering_offset = 0.003
     predicted_states = np.zeros_like(states)
     state = states[:, 0:1]
     predicted_states[:, 0:1] = state

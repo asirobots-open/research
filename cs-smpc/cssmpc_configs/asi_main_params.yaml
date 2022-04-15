@@ -37,6 +37,8 @@
        viz_topic: vizplan
 
        steering_gain: -1.2
+       steering_offset: 0.003
        steer_min: -0.785
        steer_max: 0.785
        acceleration_gain: 1.0
+       acceleration_offset: 0.0
