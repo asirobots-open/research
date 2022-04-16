@@ -9,7 +9,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0,
           "length_m": 2.8934589284144105,
-          "speed_mps": 4
+          "speed_mps": 7
         },
         {
           "start_x_m": -108.1863971710205,
@@ -27,7 +27,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0,
           "length_m": 2.8934589284144105,
-          "speed_mps": 4
+          "speed_mps": 7
         },
         {
           "start_x_m": -150.9442901611328,
@@ -36,7 +36,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0.0034246230982989167,
           "length_m": 17.2539317994056,
-          "speed_mps": 4
+          "speed_mps": 3
         },
         {
           "start_x_m": -165.82804418631812,
@@ -45,7 +45,7 @@
           "start_curvature_inv_m": 0.05909281574876198,
           "delta_curvature_per_length_inv_m2": 0.00029295009077440887,
           "length_m": 32.518001318623966,
-          "speed_mps": 4
+          "speed_mps": 3
         },
         {
           "start_x_m": -183.82907218399703,
@@ -54,7 +54,7 @@
           "start_curvature_inv_m": 0.06861896718685523,
           "delta_curvature_per_length_inv_m2": -0.003976691075549566,
           "length_m": 17.2539317994056,
-          "speed_mps": 4
+          "speed_mps": 3
         },
         {
           "start_x_m": -172.4895782470703,
@@ -63,7 +63,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0,
           "length_m": 8.627321639624482,
-          "speed_mps": 4
+          "speed_mps": 7
         },
         {
           "start_x_m": -165.58590717315673,
@@ -81,7 +81,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0,
           "length_m": 8.627321639624482,
-          "speed_mps": 4
+          "speed_mps": 7
         },
         {
           "start_x_m": -34.41615676879883,
@@ -90,7 +90,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0.0051026142147279725,
           "length_m": 13.588464225486701,
-          "speed_mps": 4
+          "speed_mps": 3
         },
         {
           "start_x_m": -22.521832780768218,
@@ -99,7 +99,7 @@
           "start_curvature_inv_m": 0.06934187342068829,
           "delta_curvature_per_length_inv_m2": 0.000909744310064275,
           "length_m": 24.89677425099084,
-          "speed_mps": 4
+          "speed_mps": 3
         },
         {
           "start_x_m": -7.677225216754733,
@@ -108,7 +108,7 @@
           "start_curvature_inv_m": 0.09199157213448196,
           "delta_curvature_per_length_inv_m2": -0.006769241747750497,
           "length_m": 13.588464225486701,
-          "speed_mps": 4
+          "speed_mps": 3
         },
         {
           "start_x_m": -16.103260040283203,
@@ -117,7 +117,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0,
           "length_m": 5.762499850386136,
-          "speed_mps": 4
+          "speed_mps": 7
         },
         {
           "start_x_m": -20.582737541198732,
@@ -135,7 +135,7 @@
           "start_curvature_inv_m": 0,
           "delta_curvature_per_length_inv_m2": 0,
           "length_m": 5.762499850386136,
-          "speed_mps": 4
+          "speed_mps": 7
         }
       ]
     }
