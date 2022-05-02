@@ -12,8 +12,8 @@ class BoringGrid(Node):
         super().__init__('boring_grid')
         self.circles = []
         self.shapes = []
-        self.empty_value = 127 # ? chr(255)
-        self.occupied_value = 0 # ? chr(0)
+        self.empty_value = 0 # ? chr(255)
+        self.occupied_value = 100 # ? chr(0)
         self.declare_parameter('terrain_topic', 'terrain_cost')
         self.declare_parameter('odometry_topic', 'odom_topic')
         terrain_topic = self.get_parameter('terrain_topic').get_parameter_value().string_value
