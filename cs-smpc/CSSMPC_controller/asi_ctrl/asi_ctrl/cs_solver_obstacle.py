@@ -8,7 +8,7 @@ import time
 
 
 class CSSolver:
-    def __init__(self, n, m, l, N, v_range, slew_rate, obstacles, mean_only=False, k_form=0, prob_lvl=0.95, chance_const_N=-1, boundary_dim=-2, delta_slew_cost=1.0):
+    def __init__(self, n, m, l, N, v_range, slew_rate, obstacles, mean_only=False, k_form=0, prob_lvl=0.95, chance_const_N=-1, boundary_dim=-2, delta_slew_cost=1.0, steering_delay=0, throttle_delay=0):
         try:
             M = Model()
             self.n = n
@@ -169,6 +169,12 @@ class CSSolver:
             for ii in range(self.N - 1):
                 M.constraint(Expr.sub(V.index((ii+1)*self.m), V.index(ii*self.m)),
                              Domain.inRange(slew_rate[0, 0], slew_rate[0, 1]))
+            for ii in range(steering_delay):
+                M.constraint(Expr.sub(V.index(ii*self.m), self.u_steering.index(ii)),
+                             Domain.equalsTo(0))
+            for ii in range(throttle_delay):
+                M.constraint(Expr.sub(V.index(ii*self.m+1), self.u_throttle.index(ii)),
+                             Domain.equalsTo(0))
 
             # terminal mean constraint
             # mu_N = np.zeros((n, 1))
@@ -396,7 +402,7 @@ class CSSolver:
         # self.M.solve()
         t0 = time.time()
         self.M.solve()
-        print((time.time() - t0))
+        # print((time.time() - t0))
         try:
             if self.mean_only:
                 K_level = np.zeros((self.m*self.N, self.n*self.N))

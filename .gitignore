@@ -6,3 +6,6 @@ jobs/
 
 # python files
 *.pyc
+
+# bag files
+bags*

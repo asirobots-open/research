@@ -25,6 +25,10 @@ RUN pip3 install numpy --user
 RUN pip3 install scipy --user
 RUN pip3 install Mosek --user
 RUN pip3 install transforms3d
+RUN apt-get install -y sqlite3
+RUN pip3 install matplotlib --user
+RUN apt-get install -y python3-tk
+RUN apt-get install -y nano
 #RUN pip3 install -r requirements.txt
 
 COPY --from=asi_boring_sim /ros2_ws /ros2_ws

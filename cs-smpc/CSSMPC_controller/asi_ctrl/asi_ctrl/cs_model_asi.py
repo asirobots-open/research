@@ -1,13 +1,11 @@
 import time
+import queue
 import numpy as np
 from numpy import sin, cos, tan, arctan as atan, sqrt, arctan2 as atan2, zeros, zeros_like, abs, pi
-#import torch
-#import throttle_model
-#import rospkg
-# import polylines_asi
+
 
 class Model:
-    def __init__(self, N, vehicle_centric=False, map_coords=False, use_vk=False):
+    def __init__(self, N, vehicle_centric=False, map_coords=False, use_vk=False, use_delays=False):
         #self.throttle = throttle_model.Net()
         #rospack = rospkg.RosPack()
         # package_path = rospack.get_path('autorally_private_control')
@@ -17,11 +15,22 @@ class Model:
         self.vehicle_centric = vehicle_centric
         self.map_coords = map_coords
         self.steering_gain = -0.60
-        self.steering_offset = 0.003
-        self.acceleration_gain = 10.0
-        self.acceleration_offset = 0.0
+        self.steering_offset = 0.006
+        self.velocity_target_offset = 0.4
+        self.velocity_target_factor = 10.0
+        self.acceleration_factor = 0.333
         self.use_vk = use_vk
-        self.delta_prev = 0.0
+        self.internal_throttle = queue.Queue()
+        self.internal_steering = queue.Queue()
+        throttle_delay = 1.2
+        steering_delay = 0.4
+        dt_state = 0.01
+        dt_control = 0.1
+        if use_delays:
+            for ii in range(int(throttle_delay / dt_state)):
+                self.internal_throttle.put(0.0)
+            for ii in range(int(steering_delay / dt_control)):
+                self.internal_steering.put(0.0)
 
         print('waiting for map')
         while map_coords:
@@ -46,6 +55,19 @@ class Model:
         idx = np.argmin(dif, axis=1)
         rho = self.rho[idx]
         return rho.flatten()
+
+    def throttle(self, T, vx):
+        self.internal_throttle.put(T)
+        delayed_T = self.internal_throttle.get()
+        target = self.velocity_target_factor * (delayed_T + self.velocity_target_offset)
+        acceleration = self.acceleration_factor * (target - vx)
+        return acceleration
+
+    def steering(self, steering):
+        self.internal_steering.put(steering)
+        delayed_steering = self.internal_steering.get()
+        delta = self.steering_gain * delayed_steering + self.steering_offset
+        return delta
 
     def update_dynamics(self, state, input, dt, nn=None, rho=0.0):
         state = state.T
@@ -86,9 +108,9 @@ class Model:
         # m_Vehicle_cSteering = 0.003  # 0.0109
         throttle_factor = 0.38
         # delta = input[:, 0]
-        steering = input[:, 0]
-        delta = self.steering_gain * steering + self.steering_offset
-        T = self.acceleration_gain * input[:, 1]#np.maximum(input[:, 1], 0)
+        steering = 1.0 * input[:, 0]
+        delta = self.steering(steering)
+        T = 1.0 * input[:, 1]#np.maximum(input[:, 1], 0)
 
         min_velo = 0.1
         deltaT = 0.01
@@ -103,7 +125,7 @@ class Model:
             if self.use_vk:
                 next_state[:, 0] = input[:, 1]
             else:
-                next_state[:, 0] = vx + deltaT * (4.0*T + self.acceleration_offset)#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
+                next_state[:, 0] = vx + deltaT * self.throttle(T, vx)#+ deltaT * ((fFx * cos(delta) - fFy * sin(delta) + fRx) / m_Vehicle_m + vy * wz)
             next_state[:, 1] = vy #+ deltaT * ((fFx * sin(delta) + fFy * cos(delta) + fRy) / m_Vehicle_m - vx * wz)
             if self.use_vk:
                 next_state[:, 2] = vx * input[:, 0]
@@ -239,7 +261,11 @@ class Model:
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    path = '../../bags2/rosbag2_2022_04_14-22_34_36/rosbag2_2022_04_14-22_34_36.npz'
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('path')
+    args = parser.parse_args()
+    path = args.path
     data = np.load(path)
     vxs = data['vx']
     yaws = data['yaw']
@@ -248,27 +274,51 @@ if __name__ == '__main__':
     deltas = data['delta']
     throttles = data['throttle']
     brakes = data['brake']
+    steer_fbs = data['steer_fbs']
+    t_control = data['t_control']
+    t_steer = data['t_steer']
+    t_state = data['t_state']
 
-    start_ii = 500
-    end_ii = 1400
-    controls = np.vstack((deltas, throttles-brakes))[:, start_ii:end_ii]
-    states = np.vstack((vxs, np.zeros_like(vxs), np.zeros_like(vxs), yaws, Xs, Ys))[:, start_ii:end_ii]
-    model = Model(1)
-    model.steering_gain = -0.64
-    model.acceleration_gain = 1.0
-    model.steering_offset = 0.003
+    start_ii = 3800
+    end_ii = -1
+    d_ii = 1
+    controls = np.vstack((deltas, throttles-brakes))[:, start_ii:end_ii:d_ii]
+    states = np.vstack((vxs, np.zeros_like(vxs), np.zeros_like(vxs), yaws, Xs, Ys))[:, start_ii:end_ii:d_ii]
+    t_control = t_control[start_ii:end_ii:d_ii]
+    t_state = t_state[start_ii:end_ii:d_ii]
+    t_steer = t_steer[start_ii:end_ii:d_ii]
+    print(t_control[1000], t_state[1000])
+    # throttle = ThrottleModel()
+    # throttle.train_model(controls[1, :], states[0, :], t_state, t_control)
+    # throttle = throttle_model.Net()
+    # throttle.load_state_dict(torch.load('throttle_model.pth'))
+    model = Model(1, use_delays=True)
+    model.steering_gain = -0.60
+    model.steering_offset = 0.006
     predicted_states = np.zeros_like(states)
     state = states[:, 0:1]
     predicted_states[:, 0:1] = state
     for ii in range(states.shape[1] - 1):
-        new_state = model.update_dynamics(state, controls[:, ii:ii+1], 0.1)
-        new_state[0:1, 0] = states[0:1, ii+1]
+        new_state = model.update_dynamics(state, controls[:, ii:ii+1], 0.1*d_ii)
+        # new_state[0:1, 0] = states[0:1, ii+1]
         predicted_states[:, ii+1:ii+2] = new_state
         state = new_state.copy()
-    plt.plot(states[0, :])
-    plt.plot(controls[1, :])
-    plt.plot(predicted_states[0, :])
+        # vx_factor = 10.0
+        # T_factor = 1.0
+        # state[0, :] += 0.3 * throttle(controls[1, ii:ii+1], state[0, :])
+        # predicted_states[:, ii+1:ii+2] = state
+
+    plt.subplot(2, 1, 1)
+    plt.plot(t_state, states[0, :])
+    plt.plot(t_control, controls[1, :])
+    plt.plot(t_state, predicted_states[0, :])
+    plt.subplot(2, 1, 2)
+    plt.plot(t_steer, steer_fbs[start_ii:end_ii:d_ii])
+    plt.plot(t_control, controls[0, :])
     plt.show()
     plt.plot(states[-2, :], states[-1, :])
     plt.plot(predicted_states[-2, :], predicted_states[-1, :])
+    plt.figure()
+    plt.plot(t_state, states[3, :])
+    plt.plot(t_state, predicted_states[3, :])
     plt.show()

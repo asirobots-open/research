@@ -65,23 +65,29 @@ class CS_SMPC(rclpy.node.Node):
         R_steer = self.get_parameter('R_steer').get_parameter_value().double_value
         self.declare_parameter('R_throttle', 2.0)
         R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
-        self.create_timer(1.0, self.dynamic_reconfigure)
+        # self.create_timer(1.0, self.dynamic_reconfigure)
         self.declare_parameter('bound_ceiling', 20.0)
         self.bound_ceiling = self.get_parameter('bound_ceiling').get_parameter_value().double_value
         self.declare_parameter('bound_length', 25.0)
         self.bound_length = self.get_parameter('bound_length').get_parameter_value().double_value
         self.declare_parameter('bound_stride', 1.0)
         self.bound_stride = self.get_parameter('bound_stride').get_parameter_value().double_value
-        self.declare_parameter('command_topic', '')
+        self.declare_parameter('command_topic', 'cmd')
         self.command_topic = self.get_parameter('command_topic').get_parameter_value().string_value
         self.declare_parameter('steering_gain', -1.0)
         self.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
-        self.declare_parameter('acceleration_gain', 10.0)
-        self.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
         self.declare_parameter('steering_offset', 0.003)
         self.steering_offset = self.get_parameter('steering_offset').get_parameter_value().double_value
-        self.declare_parameter('acceleration_offset', 0.0)
-        self.acceleration_offset = self.get_parameter('acceleration_offset').get_parameter_value().double_value
+        self.declare_parameter('velocity_target_offset', 0.4)
+        self.velocity_target_offset = self.get_parameter('velocity_target_offset').get_parameter_value().double_value
+        self.declare_parameter('velocity_target_factor', 10.0)
+        self.velocity_target_factor = self.get_parameter('velocity_target_factor').get_parameter_value().double_value
+        self.declare_parameter('acceleration_factor', 0.333)
+        self.acceleration_factor = self.get_parameter('acceleration_factor').get_parameter_value().double_value
+        self.declare_parameter('steering_delay', 2)
+        self.steering_delay = self.get_parameter('steering_delay').get_parameter_value().integer_value
+        self.declare_parameter('throttle_delay', 0)
+        self.throttle_delay = self.get_parameter('throttle_delay').get_parameter_value().integer_value
         self.declare_parameter('use_vk', False)
         self.use_vk = self.get_parameter('use_vk').get_parameter_value().bool_value
 
@@ -111,12 +117,15 @@ class CS_SMPC(rclpy.node.Node):
 
         self.ar = cs_model.Model(self.N, vehicle_centric=False, map_coords=True, use_vk=self.use_vk)
         self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
-        self.ar.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
+        self.ar.steering_offset = self.get_parameter('steering_offset').get_parameter_value().double_value
+        self.ar.velocity_target_offset = self.get_parameter('velocity_target_offset').get_parameter_value().double_value
+        self.ar.velocity_target_factor = self.get_parameter('velocity_target_factor').get_parameter_value().double_value
+        self.ar.acceleration_factor = self.get_parameter('acceleration_factor').get_parameter_value().double_value
 
         if self.load_k:
             self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.u_min, self.u_max, mean_only=True, lti_k=False)
         else:
-            self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.v_range, self.slew_rate, (False, 4*self.N), mean_only=True, k_form=1, prob_lvl=self.prob_lvl, chance_const_N=self.N, boundary_dim=-2, delta_slew_cost=1.0)
+            self.solver = cs_solver.CSSolver(self.n, self.m, self.l, self.N, self.v_range, self.slew_rate, (False, 4*self.N), mean_only=True, k_form=1, prob_lvl=self.prob_lvl, chance_const_N=self.N, boundary_dim=-2, delta_slew_cost=1.0, steering_delay=self.steering_delay, throttle_delay=self.throttle_delay)
 
         Q = np.zeros((self.n, self.n))
         Q[0, 0] = Q_speed
@@ -144,6 +153,7 @@ class CS_SMPC(rclpy.node.Node):
         self.t2 = time.time()
         self.bounds_array = 100.0 * np.ones((2, int(self.bound_length / self.bound_stride)))
 
+        self.create_timer(1.0 / 10.0, self.main_update)
         qos_profile = QoSProfile(depth=10)
         qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT  # .RELIABLE
         qos_profile.history = QoSHistoryPolicy.KEEP_LAST  # .KEEP_ALL
@@ -160,37 +170,37 @@ class CS_SMPC(rclpy.node.Node):
         self.get_logger().info('subscribed to map odom')
         self.create_subscription(MapBounds, "bounds_array", self.bounds_callback, qos_profile)
 
-    def dynamic_reconfigure(self):
-        self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
-        self.terminal_speed = self.get_parameter('terminal_speed').get_parameter_value().double_value
-        Q_speed = self.get_parameter('Q_speed').get_parameter_value().double_value
-        Q_heading = self.get_parameter('Q_heading').get_parameter_value().double_value
-        Q_lateral = self.get_parameter('Q_lateral').get_parameter_value().double_value
-        QN_speed = self.get_parameter('QN_speed').get_parameter_value().double_value
-        QN_heading = self.get_parameter('QN_heading').get_parameter_value().double_value
-        QN_lateral = self.get_parameter('QN_lateral').get_parameter_value().double_value
-        R_steer = self.get_parameter('R_steer').get_parameter_value().double_value
-        R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
-
-        Q = np.zeros((self.n, self.n))
-        Q[0, 0] = Q_speed
-        Q[1, 1] = 0.0
-        Q[2, 2] = 0.0
-        Q[3, 3] = Q_heading
-        Q[4, 4] = Q_lateral
-        self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
-        self.Q_bar[-6, -6] = QN_speed
-        self.Q_bar[-3, -3] = QN_heading
-        self.Q_bar[-2, -2] = QN_lateral
-        R = np.zeros((self.m, self.m))
-        R[0, 0] = R_steer  # 2
-        R[1, 1] = R_throttle  # 1
-        self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
-
-        self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
-        self.ar.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
-        self.ar.steering_offset = self.get_parameter('steering_offset').get_parameter_value().double_value
-        self.ar.acceleration_offset = self.get_parameter('acceleration_offset').get_parameter_value().double_value
+    # def dynamic_reconfigure(self):
+    #     self.max_speed = self.get_parameter('max_speed').get_parameter_value().double_value
+    #     self.terminal_speed = self.get_parameter('terminal_speed').get_parameter_value().double_value
+    #     Q_speed = self.get_parameter('Q_speed').get_parameter_value().double_value
+    #     Q_heading = self.get_parameter('Q_heading').get_parameter_value().double_value
+    #     Q_lateral = self.get_parameter('Q_lateral').get_parameter_value().double_value
+    #     QN_speed = self.get_parameter('QN_speed').get_parameter_value().double_value
+    #     QN_heading = self.get_parameter('QN_heading').get_parameter_value().double_value
+    #     QN_lateral = self.get_parameter('QN_lateral').get_parameter_value().double_value
+    #     R_steer = self.get_parameter('R_steer').get_parameter_value().double_value
+    #     R_throttle = self.get_parameter('R_throttle').get_parameter_value().double_value
+    #
+    #     Q = np.zeros((self.n, self.n))
+    #     Q[0, 0] = Q_speed
+    #     Q[1, 1] = 0.0
+    #     Q[2, 2] = 0.0
+    #     Q[3, 3] = Q_heading
+    #     Q[4, 4] = Q_lateral
+    #     self.Q_bar = np.kron(np.eye(self.N, dtype=int), Q)
+    #     self.Q_bar[-6, -6] = QN_speed
+    #     self.Q_bar[-3, -3] = QN_heading
+    #     self.Q_bar[-2, -2] = QN_lateral
+    #     R = np.zeros((self.m, self.m))
+    #     R[0, 0] = R_steer  # 2
+    #     R[1, 1] = R_throttle  # 1
+    #     self.R_bar = np.kron(np.eye(self.N, dtype=int), R)
+    #
+    #     self.ar.steering_gain = self.get_parameter('steering_gain').get_parameter_value().double_value
+    #     self.ar.acceleration_gain = self.get_parameter('acceleration_gain').get_parameter_value().double_value
+    #     self.ar.steering_offset = self.get_parameter('steering_offset').get_parameter_value().double_value
+    #     self.ar.acceleration_offset = self.get_parameter('acceleration_offset').get_parameter_value().double_value
 
     def odom_callback(self, map_msg):
         # self.get_logger().info('map odom received')
@@ -235,7 +245,6 @@ class CS_SMPC(rclpy.node.Node):
         self.state = np.array([vx, vy, wz, epsi, ey, s]).reshape((-1, 1))
         print('state', self.state)
         self.begin = 1
-        self.main_update()
 
     def roll_out_trajectory(self, x_0, us, N, lin=None):
         x_0 = x_0.copy()
@@ -342,11 +351,11 @@ class CS_SMPC(rclpy.node.Node):
         # queue.put((V, K, X_bar, (A, B, d)))
         return V, K, X_bar, (A, B, d)
 
-    def update_control(self, V, K, X_bar, kk):
-        y = self.state.flatten() - X_bar[kk * self.n:(kk + 1) * self.n]
+    def update_control(self, control, K, X_bar):
+        y = self.state.flatten() - X_bar[0 * self.n:(0 + 1) * self.n]
         # if abs(y[7]) > 51.8453:  # need to use absolute s
         #     y[7] = 0
-        u = V[kk * self.m:(kk + 1) * self.m] #+ np.dot(K[kk * self.m:(kk + 1) * self.m, kk * self.n:(kk + 1) * self.n], y)
+        u = control.flatten()  # V[kk * self.m:(kk + 1) * self.m] #+ np.dot(K[kk * self.m:(kk + 1) * self.m, kk * self.n:(kk + 1) * self.n], y)
         u = np.where(u > self.v_range[:, 1], self.v_range[:, 1], u)
         u = np.where(u < self.v_range[:, 0], self.v_range[:, 0], u)
         print('u', u)
@@ -373,114 +382,22 @@ class CS_SMPC(rclpy.node.Node):
         return y
 
     def main_update(self):
-        num_steps_applied = 1
-        t0 = time.time()
-        if self.load_k:
-            nearest = np.argmin(np.linalg.norm(self.state - ss, axis=0))
-            K = ks[:, :, nearest]
-        mu_0 = self.state.copy()
-        # print('mu_0', mu_0)
-        if self.load_k:
-            V, _K, X_bar, lin_params = self.update_solution(self.state, self.us, self.D, K=K)
-        else:
-            V, K, X_bar, lin_params = self.update_solution(self.state, self.us, self.D)
-        # nearest = np.argmin(np.linalg.norm(controller.state[:, 0] - ss[:, :], axis=0))
-        # K = ks[:, :, nearest]
-        # try:
-        #     ks[:, :, iii] = K[:, :]
-        #     ss[:, iii] = controller.state[:, 0]
-        #     iii += 1
-        # except IndexError:
-        #     np.savez('Ks_ltv_10N_9mps.npz', ks=ks, ss=ss)
-        #     break
-        # V, K, X_bar, lin_params = solver_io.get()
+        V, K, X_bar, lin_params = self.update_solution(self.state, self.us, self.D)
         self.us = V.reshape((self.m, self.N), order='F')
-        # predicted_x_0 = controller.roll_out_trajectory(controller.state, us, num_steps_applied + 1, lin=lin_params)[:, -1].reshape((-1, 1))
-        # print(controller.state, us, predicted_x_0)
-        # us = np.hstack((us[:, num_steps_applied:], np.tile(us[:, -1].reshape((-1, 1)), (1, num_steps_applied))))
-        # solver_io.put((predicted_x_0, us, D))
-        # solve = DummyProcess(target=controller.update_solution, args=(solver_io,))
-        # print('setup time:', time.time() - t0)
-        # ltv_sys = lin_params
-        for ii in range(num_steps_applied):
-            # ltv_io.put((controller.state, V, ltv_sys))
-            t1 = time.time()
-            # ltv = Process(target=controller.ltv_solve, args=(ltv_io,))
-            # ltv.start()
-            # if ii == 0:
-            #     solve.start()
-            # controller.ltv_solve(ltv_io)
-            # for jj in range(int(controller.dt_linearization / dt_control)):
-            y = self.update_control(V, K, X_bar, ii)
-            print('time: ', time.time() - self.t2)
-            # controller.get_logger().info('controlling')
-            self.t2 = time.time()
-            # control_update_rate.sleep()
-            # if ii == 1 and jj == 0:
-            self.D = np.diag(y)
-            # controller.goal_pub.publish(controller.goal)
-            # controller.state = controller.ar.update_dynamics(controller.state, us[:, 0:1], 0.99)
-            # ltv.join()
-            # print('ltv time:', time.time() - t1)
-            # ltv_sys = ltv_io.get()
-            # A, B, d, script_D = ltv_sys
-            # ltv_sys = (A, B, d)
-            # controller.ltv_solver.populate_params(A, B, d, script_D, controller.state, np.zeros((controller.n, controller.n)), np.zeros((controller.n, controller.n)), controller.Q_bar, controller.R_bar,
-            #                                 V[:controller.m])
-            # V, _ = controller.ltv_solver.solve()
-            # linearization_step_rate.sleep()
+        # print('us:, ', self.us)
+        control = np.vstack((self.us[0, self.steering_delay:self.steering_delay + 1], self.us[1, self.throttle_delay:self.throttle_delay + 1]))
+        y = self.update_control(control, K, X_bar)
+        self.us = np.hstack((self.us[:, 1:], self.us[:, -1:]))
+        print('time: ', time.time() - self.t2)
+        self.t2 = time.time()
+        self.D = np.diag(y)
 
 
 def main(args=None):
     print('starting controller')
     rclpy.init(args=args)
     controller = CS_SMPC()
-    controller.get_logger().info('subscribed to map odom')
-    rate = controller.create_rate(0.1)
-    # controller.ltv_solver = cs_solver.CSSolver(controller.n, controller.m, controller.l, controller.N, controller.u_min, controller.u_max, mean_only=True)
-    num_steps_applied = 1  # int(controller.dt_solve / controller.dt_linearization)
-    # solver_io = Queue(maxsize=1)
-    # ltv_io = MQ()
-    dt_control = controller.dt_solve
-    # control_update_rate = rospy.Rate(1/dt_control)
-    # linearization_step_rate = rospy.Rate(1/controller.dt_linearization)
-    us = np.tile(np.array([0.0, 0.02]).reshape((-1, 1)), (1, controller.N))
-
-    ks = np.zeros((2 * 10, 8 * 10, 25 * 20))
-    ss = np.zeros((8, 25 * 20))
-    iii = 0
-    if controller.load_k:
-        rospack = rospkg.RosPack()
-        package_path = rospack.get_path('autorally_private_control')
-        dictionary = np.load(package_path + "/src/CSSMPC/Ks_ltv_10N_9mps.npz")
-        ks = dictionary['ks']
-        ss = dictionary['ss']
-        print("loaded feedback matrices")
-
-    print('waiting for first pose estimate')
-    # while not controller.begin and rclpy.ok():
-    #     controller.get_logger().info('waiting')
-    #     rate.sleep()
     controller.get_logger().info('starting')
-    # controller.state = np.array([1.5, -.0034, 0.0019, 0.0008, -2.0, 0.0036]).reshape((-1, 1))
-    # obs_locs = np.array([[0.0, 18], [2., 15.0]])
-    # controller.track_w = np.tile(np.ones((2, 1)), (1, controller.N))
-    # controller.track_w[1, :] = 0.1
-    # controller.track_w[1, 20:] = -0.2
-    # controller.track_w[0, :] = 2
-    # controller.state = np.array([0.09610, -.0, 0.0, 0.0, -3.04, 0.00]).reshape((-1, 1))
-    # controller.obs_locs = np.array([[-10.0, -9.], [-10.0, -9.]])
-    # buffer = 0.5
-    # controller.obs_locs[:, 0] -= buffer
-    # controller.obs_locs[:, 1] += buffer
-    D = np.zeros((controller.n, controller.l))
-    # solver_io.put((controller.state, us, D))
-    # solve = DummyProcess(target=controller.update_solution, args=(solver_io,))
-    # solve.start()
-    # solve.join()
-    # V, K, X_bar, lin_params = controller.update_solution(controller.state, us, D)
-    # controller.system_id()
-    # exit()
     rclpy.spin(controller)
     controller.destroy_node()
     rclpy.shutdown()
