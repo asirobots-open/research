@@ -8,8 +8,8 @@
        steer_max: 0.785
        throttle_min: -0.2
        throttle_max: 0.4
-       delta_steer_min: -0.1
-       delta_steer_max: 0.1
+       delta_steer_min: -0.05
+       delta_steer_max: 0.05
        delta_throttle_min: -0.2
        delta_throttle_max: 0.05
        steering_delay: 2
