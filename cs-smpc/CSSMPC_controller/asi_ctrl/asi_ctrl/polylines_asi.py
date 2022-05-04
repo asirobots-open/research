@@ -34,6 +34,8 @@ class Map_CA(rclpy.node.Node):
         self.back_cells = self.get_parameter('back_cells').get_parameter_value().integer_value
         self.declare_parameter('grid_resolution', 0.25)
         self.grid_resolution = self.get_parameter('grid_resolution').get_parameter_value().double_value
+        self.declare_parameter('undrivable_threshold', 20)
+        self.undrivable_threshold = self.get_parameter('undrivable_threshold').get_parameter_value().double_value
         self.declare_parameter('inertial_frame', False)
         self.inertial_frame = self.get_parameter('inertial_frame').get_parameter_value().bool_value
         self.declare_parameter('bound_ceiling', 20.0)
@@ -403,7 +405,7 @@ class Map_CA(rclpy.node.Node):
         occ = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
         # print(occ)
         # self.get_logger().info(str(occ))
-        obs_locs_y_map, obs_locs_x_map = np.where(occ < 1.0)
+        obs_locs_y_map, obs_locs_x_map = np.where(occ > self.undrivable_threshold)
         obs_locs_x_car = obs_locs_x_map * self.grid_resolution - self.back_cells * self.grid_resolution
         obs_locs_y_car = obs_locs_y_map * self.grid_resolution - self.width_cells / 2.0 * self.grid_resolution
         # self.get_logger().info(str(obs_locs_y_car))
