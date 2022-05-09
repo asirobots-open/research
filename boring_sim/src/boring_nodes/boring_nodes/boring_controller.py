@@ -53,7 +53,7 @@ class BoringController(Node):
         steer_pgain = 1
         steer_dgain = 4
         pitch_gain = 1
-        velocity_gain = 0.005
+        velocity_gain = 0.5
         lookahead_time_sec = 0.5
         wheel_base = 4
         max_steer_angle = 0.785
