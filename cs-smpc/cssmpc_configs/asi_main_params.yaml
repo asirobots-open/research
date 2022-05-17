@@ -12,7 +12,7 @@
        delta_steer_max: 0.05
        delta_throttle_min: -0.2
        delta_throttle_max: 0.05
-       steering_delay: 2
+       steering_delay: 4
        throttle_delay: 12
        Q_speed: 10.0
        Q_heading: 300.0
@@ -41,7 +41,7 @@
        plan_topic: planned_path
        viz_topic: vizplan
 
-       steering_gain: -0.6
+       steering_gain: -1.2
        steering_offset: 0.006
        velocity_target_offset: 0.4
        velocity_target_factor: 10.0
