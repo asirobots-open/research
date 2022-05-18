@@ -2,7 +2,7 @@
      ros__parameters:
        max_speed: 20.0
        terminal_speed: -1.0
-       horizon_length: 20
+       horizon_length: 40
        time_step: 0.1
        steer_min: -0.785
        steer_max: 0.785
@@ -23,15 +23,15 @@
        R_steer: 100.0
        R_throttle: 2.0
 
-       width_cells: 120
-       front_cells: 60
-       back_cells: 60
-       undrivable_threshold: 20
+       width_cells: 401
+       front_cells: 200
+       back_cells: 201
+       undrivable_threshold: 50.0
        inertial_frame: true
 
-       bound_ceiling: 20.0
-       bound_length: 25.0
-       bound_stride: 1.0
+       bound_ceiling: 10.0
+       bound_length: 20.0
+       bound_stride: 2.0
        obs_buffer: 1.5
        min_track_width: 6.0
        obs_method: 2
