@@ -213,6 +213,7 @@ class Map_CA(rclpy.node.Node):
             p_length[0, ii] = clothoid.length_m
             p_speed[0, ii] = clothoid.speed_mps
         self.p = np.vstack([p_x, p_y])
+        self.get_logger().info(str(p_speed))
         self.p = np.append(self.p, (self.p[:, -1].reshape((-1, 1)) + np.vstack((p_length[0, -1]*np.cos(p_theta[0, -1]), p_length[0, -1]*np.sin(p_theta[0, -1])))).reshape((-1, 1)), axis=1)
         self.p_theta = np.append(p_theta, np.arctan2(self.p[1, 0] - self.p[1, -1], self.p[0, 0] - self.p[0, -1]).reshape((1, 1)), axis=1)
         self.p_length = np.append(p_length, np.linalg.norm(self.p[:, 0] - self.p[:, -1]).reshape((1, 1)), axis=1)
@@ -276,6 +277,7 @@ class Map_CA(rclpy.node.Node):
         return p_curvature, p_speed, self.s
 
     def convert_obs_to_constraints(self, obs_locs):
+        t0 = time.time()
         ceiling = self.bound_ceiling
         bound_length = self.bound_length
         bound_stride = self.bound_stride
@@ -290,6 +292,7 @@ class Map_CA(rclpy.node.Node):
                 obs_locs_map[:, ii] = np.array([norm_dist, s_dist])
             # print(obs_locs_map[:, :])
             # print(self.state[-2:])
+            # print('time for loc: ', time.time() - t0)
         except (IndexError, ValueError) as e:
             self.get_logger().info('no obs')
             return boundary_dists
@@ -297,7 +300,9 @@ class Map_CA(rclpy.node.Node):
             path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
             left_obs = obs_locs_map[:, obs_locs_map[0, :] > 0.0]
             right_obs = obs_locs_map[:, obs_locs_map[0, :] < 0.0]
-            if left_obs[:, left_obs[0, :] < half_min_track_width].shape[1] > right_obs[:, right_obs[0, :] > -half_min_track_width].shape[1]:
+            obs_com = np.mean(np.hstack((left_obs[0, left_obs[0, :] < half_min_track_width], right_obs[0, right_obs[0, :] > -half_min_track_width])))
+            self.get_logger().info(str(obs_com))
+            if obs_com - self.mapca.ey > 0.0:
                 veer = 1
             else:
                 veer = 0
@@ -322,6 +327,7 @@ class Map_CA(rclpy.node.Node):
                         left_bound = - obstacle_buffer # + np.min(right_obs[0, right_obs[0, :] > -half_min_track_width])
                         right_bound = np.min(right_obs[0, :])
                 boundary_dists[:, ii:ii+1] = np.vstack((left_bound, -1 * right_bound))
+            # print('time for enc: ', time.time() - t0)
         elif self.obs_method == 1:
             path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
             left_obs = obs_locs_map[:, obs_locs_map[0, :] > 0.0]
@@ -395,6 +401,7 @@ class Map_CA(rclpy.node.Node):
         # right_bound.header.seq = 0
         right_bound.header.stamp = bound_time
         self.boundary_pub.publish(right_bound)
+        # print('time for bounds: ', time.time() - t0)
 
         # boundary_dists = boundary_dists[:, ::-1]
         # print('boundary dists:', boundary_dists)
