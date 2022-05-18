@@ -10,7 +10,8 @@ import rclpy.node
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 import scipy.interpolate
 from nav_msgs.msg import Odometry, Path, OccupancyGrid
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point32
+from sensor_msgs.msg import PointCloud
 # from autorally_msgs.msg import wheelSpeeds
 from scipy.spatial.transform import Rotation
 from asi_msgs.msg import MapCA
@@ -34,7 +35,7 @@ class Map_CA(rclpy.node.Node):
         self.back_cells = self.get_parameter('back_cells').get_parameter_value().integer_value
         self.declare_parameter('grid_resolution', 0.25)
         self.grid_resolution = self.get_parameter('grid_resolution').get_parameter_value().double_value
-        self.declare_parameter('undrivable_threshold', 20)
+        self.declare_parameter('undrivable_threshold', 20.0)
         self.undrivable_threshold = self.get_parameter('undrivable_threshold').get_parameter_value().double_value
         self.declare_parameter('inertial_frame', False)
         self.inertial_frame = self.get_parameter('inertial_frame').get_parameter_value().bool_value
@@ -409,13 +410,19 @@ class Map_CA(rclpy.node.Node):
 
     def obstacle_callback(self, occupancy_msg=None):
         np.set_printoptions(threshold=sys.maxsize)
-        occ = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
+        occ_big = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
+        crop = 100
+        occ = occ_big[crop:-crop, crop:-crop]
+        window_size = 1
+        # window_view = view_as_windows(occ_big, (window_size, window_size), step=(window_size, window_size))
+        # occ = np.mean(window_view, axis=(2, 3))
+        # self.get_logger().info(str(occ_big))
         # print(occ)
-        # self.get_logger().info(str(occ))
+        # self.get_logger().info('received occ')
         obs_locs_y_map, obs_locs_x_map = np.where(occ > self.undrivable_threshold)
-        obs_locs_x_car = obs_locs_x_map * self.grid_resolution - self.back_cells * self.grid_resolution
-        obs_locs_y_car = obs_locs_y_map * self.grid_resolution - self.width_cells / 2.0 * self.grid_resolution
-        # self.get_logger().info(str(obs_locs_y_car))
+        obs_locs_x_car = obs_locs_x_map * self.grid_resolution * window_size - (self.back_cells - crop) * self.grid_resolution
+        obs_locs_y_car = obs_locs_y_map * self.grid_resolution * window_size - (self.width_cells / 2.0 - crop) * self.grid_resolution
+        # self.get_logger().info(str(obs_locs_x_car))
         # obs_locs_x_car = np.array([10.0, 12.0])
         # obs_locs_y_car = np.array([14.0, 15.0])
         # lateral_distance_grid = 14 * np.ones((60, 60))
@@ -440,25 +447,25 @@ class Map_CA(rclpy.node.Node):
             # print(obs_locs_x_cartesian[0], obs_locs_y_cartesian[0])
         # except IndexError:
         #     pass
-        # point_cloud = PointCloud()
-        # point_cloud.header.frame_id = 'map'
-        # for ii in range(len(obs_locs_x_cartesian)):
-        #     point = Point32()
-        #     point.x = obs_locs_x_cartesian[ii]
-        #     point.y = obs_locs_y_cartesian[ii]
-        #     point.z = 0.0
-        #     point_cloud.points.append(point)
-        # # channel = ChannelFloat32()
-        # # channel.name = 'intensity'
-        # # channel.values = np.ones
-        # # point_cloud.channels.append(channel)
-        # self.goal_pub.publish(point_cloud)
+        point_cloud = PointCloud()
+        point_cloud.header.frame_id = 'map'
+        for ii in range(len(obs_locs_x_cartesian)):
+            point = Point32()
+            point.x = obs_locs_x_cartesian[ii]
+            point.y = obs_locs_y_cartesian[ii]
+            point.z = 0.0
+            point_cloud.points.append(point)
+        # channel = ChannelFloat32()
+        # channel.name = 'intensity'
+        # channel.values = np.ones
+        # point_cloud.channels.append(channel)
+        self.goal_pub.publish(point_cloud)
         boundary_dists = self.convert_obs_to_constraints(obs_locs)
         bounds_msg = MapBounds()
         data0 = boundary_dists.astype('float64').tolist()[0]
         data1 = boundary_dists.astype('float64').tolist()[1]
         data = data0 + data1
-        # self.get_logger().info(data)
+        self.get_logger().info('sending bounds')
         bounds_msg.array.data = data
         self.bounds_array_pub.publish(bounds_msg)
         return
