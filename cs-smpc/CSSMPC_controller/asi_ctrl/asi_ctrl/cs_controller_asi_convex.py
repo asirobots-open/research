@@ -85,9 +85,9 @@ class CS_SMPC(rclpy.node.Node):
         self.velocity_target_factor = self.get_parameter('velocity_target_factor').get_parameter_value().double_value
         self.declare_parameter('acceleration_factor', 0.333)
         self.acceleration_factor = self.get_parameter('acceleration_factor').get_parameter_value().double_value
-        self.declare_parameter('steering_delay', 2)
+        self.declare_parameter('steering_delay', 4)
         self.steering_delay = self.get_parameter('steering_delay').get_parameter_value().integer_value
-        self.declare_parameter('throttle_delay', 0)
+        self.declare_parameter('throttle_delay', 12)
         self.throttle_delay = self.get_parameter('throttle_delay').get_parameter_value().integer_value
         self.declare_parameter('use_vk', False)
         self.use_vk = self.get_parameter('use_vk').get_parameter_value().bool_value

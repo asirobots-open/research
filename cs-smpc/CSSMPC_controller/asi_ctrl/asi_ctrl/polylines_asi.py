@@ -10,7 +10,8 @@ import rclpy.node
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 import scipy.interpolate
 from nav_msgs.msg import Odometry, Path, OccupancyGrid
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point32
+from sensor_msgs.msg import PointCloud
 # from autorally_msgs.msg import wheelSpeeds
 from scipy.spatial.transform import Rotation
 from asiext_msgs.msg import MapCA
@@ -34,7 +35,7 @@ class Map_CA(rclpy.node.Node):
         self.back_cells = self.get_parameter('back_cells').get_parameter_value().integer_value
         self.declare_parameter('grid_resolution', 0.25)
         self.grid_resolution = self.get_parameter('grid_resolution').get_parameter_value().double_value
-        self.declare_parameter('undrivable_threshold', 20)
+        self.declare_parameter('undrivable_threshold', 20.0)
         self.undrivable_threshold = self.get_parameter('undrivable_threshold').get_parameter_value().double_value
         self.declare_parameter('inertial_frame', False)
         self.inertial_frame = self.get_parameter('inertial_frame').get_parameter_value().bool_value
@@ -81,51 +82,18 @@ class Map_CA(rclpy.node.Node):
         self.create_subscription(OccupancyGrid, "drivability_grid", self.obstacle_callback, sqos_profile)
         self.boundary_pub = self.create_publisher(Path, "boundaries", pqos_profile)
         self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", pqos_profile)
+	self.goal_pub = self.create_publisher(PointCloud, "goal", qos_profile)
 
-    def localize(self, M, psi):
-        # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)
-        # mini = np.argmin(dists)
-        # p0 = self.p[:, mini]
-        # p1 = p0 + self.p_length[0, mini] * np.cos(self.p_theta[0, mini]) + self.p_length[0, mini] * np.sin(self.p_theta[0 ,mini])
-        # # plt.plot(M[0], M[1], 'x')
-        # # plt.plot(p0[0], p0[1], 'o')
-        # # plt.plot(p1[0], p1[1], 'o')
-        # # ortho = -1/(self.slopes[mini] + 1e-8)
-        # # a = M[1] - ortho * M[0]
-        # # a_0 = p0[1] - ortho*p0[0]
-        # # a_1 = p1[1] - ortho*p1[0]
-        # printi=0
-        # if 1:#a_0 < a < a_1 or a_1 < a < a_0:
-        #     norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(np.cross(p1 - p0, M - p0)) / np.linalg.norm(p1 - p0)
-        #     s_dist = np.linalg.norm(np.dot(M-p0, p1-p0))
-        # else:
-        #     printi=1
-        #     norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(M - p0)
-        #     s_dist = 0
-        # # if norm_dist > 0.5:
-        # #     print('here')
-        # # s_dist += self.s[mini]
-        # # head_dist = psi - np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini])
-        # head_dist = psi - self.p_theta[0, mini]
-        # if head_dist > np.pi:
-        #     # print(psi, np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini]))
-        #     head_dist -= 2*np.pi
-        #     print(norm_dist, s_dist, head_dist * 180 / np.pi)
-        # elif head_dist < -np.pi:
-        #     head_dist += 2*np.pi
-        #     print(norm_dist, s_dist, head_dist * 180 / np.pi)
-        # # if printi:
-        # #     print(norm_dist, s_dist, head_dist*180/np.pi)
-        # #     printi=0
-        # # plt.show()
-        # return head_dist, norm_dist, s_dist
+    def localize(self, M, psi, use_heuristic=False):
+        angle_dists = np.abs(psi - np.arctan2(self.dif_vecs[1, :], self.dif_vecs[0, :]))
+        # good_angles = np.where(angle_dists < np.pi/3.0)[0]
+        s_dists = np.abs(self.mapca.s - self.s)
+        s_dists[s_dists > 300.0] = 0
+        # good_s = np.where(s_dists < 50.0)
         dists = np.linalg.norm(np.subtract(M.reshape((-1, 1)), self.midpoints), axis=0)
-        mini = np.argmin(dists)
+        mini = np.argmin(dists + s_dists/50.0)
         p0 = self.p[:, mini]
         p1 = self.p[:, mini + 1]
-        # plt.plot(M[0], M[1], 'x')
-        # plt.plot(p0[0], p0[1], 'o')
-        # plt.plot(p1[0], p1[1], 'o')
         ortho = -1 / self.slopes[mini]
         a = M[1] - ortho * M[0]
         a_0 = p0[1] - ortho * p0[0]
@@ -139,8 +107,6 @@ class Map_CA(rclpy.node.Node):
             printi = 1
             norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(M - p0)
             s_dist = 0
-        # if norm_dist > 0.5:
-        #     print('here')
         s_dist += self.s[mini]
         head_dist = psi - np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini])
         if head_dist > np.pi:
@@ -153,7 +119,6 @@ class Map_CA(rclpy.node.Node):
         # if printi:
         #     print(norm_dist, s_dist, head_dist*180/np.pi)
         #     printi=0
-        # plt.show()
         speed = self.speeds[mini]
         return head_dist, norm_dist, s_dist, speed
 
@@ -214,6 +179,7 @@ class Map_CA(rclpy.node.Node):
             p_length[0, ii] = clothoid.length_m
             p_speed[0, ii] = clothoid.speed_mps
         self.p = np.vstack([p_x, p_y])
+        self.get_logger().info(str(p_speed))
         self.p = np.append(self.p, (self.p[:, -1].reshape((-1, 1)) + np.vstack((p_length[0, -1]*np.cos(p_theta[0, -1]), p_length[0, -1]*np.sin(p_theta[0, -1])))).reshape((-1, 1)), axis=1)
         self.p_theta = np.append(p_theta, np.arctan2(self.p[1, 0] - self.p[1, -1], self.p[0, 0] - self.p[0, -1]).reshape((1, 1)), axis=1)
         self.p_length = np.append(p_length, np.linalg.norm(self.p[:, 0] - self.p[:, -1]).reshape((1, 1)), axis=1)
@@ -277,6 +243,7 @@ class Map_CA(rclpy.node.Node):
         return p_curvature, p_speed, self.s
 
     def convert_obs_to_constraints(self, obs_locs):
+        t0 = time.time()
         ceiling = self.bound_ceiling
         bound_length = self.bound_length
         bound_stride = self.bound_stride
@@ -291,6 +258,7 @@ class Map_CA(rclpy.node.Node):
                 obs_locs_map[:, ii] = np.array([norm_dist, s_dist])
             # print(obs_locs_map[:, :])
             # print(self.state[-2:])
+            # print('time for loc: ', time.time() - t0)
         except (IndexError, ValueError) as e:
             self.get_logger().info('no obs')
             return boundary_dists
@@ -298,7 +266,9 @@ class Map_CA(rclpy.node.Node):
             path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
             left_obs = obs_locs_map[:, obs_locs_map[0, :] > 0.0]
             right_obs = obs_locs_map[:, obs_locs_map[0, :] < 0.0]
-            if left_obs[:, left_obs[0, :] < half_min_track_width].shape[1] > right_obs[:, right_obs[0, :] > -half_min_track_width].shape[1]:
+            obs_com = np.mean(np.hstack((left_obs[0, left_obs[0, :] < half_min_track_width], right_obs[0, right_obs[0, :] > -half_min_track_width])))
+            self.get_logger().info(str(obs_com))
+            if obs_com - self.mapca.ey > 0.0:
                 veer = 1
             else:
                 veer = 0
@@ -396,6 +366,7 @@ class Map_CA(rclpy.node.Node):
         # right_bound.header.seq = 0
         right_bound.header.stamp = bound_time
         self.boundary_pub.publish(right_bound)
+        # print('time for bounds: ', time.time() - t0)
 
         # boundary_dists = boundary_dists[:, ::-1]
         # print('boundary dists:', boundary_dists)
@@ -403,13 +374,19 @@ class Map_CA(rclpy.node.Node):
 
     def obstacle_callback(self, occupancy_msg=None):
         np.set_printoptions(threshold=sys.maxsize)
-        occ = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
+        occ_big = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
+        crop = 100
+        occ = occ_big[crop:-crop, crop:-crop]
+        window_size = 1
+        # window_view = view_as_windows(occ_big, (window_size, window_size), step=(window_size, window_size))
+        # occ = np.mean(window_view, axis=(2, 3))
+        # self.get_logger().info(str(occ_big))
         # print(occ)
-        # self.get_logger().info(str(occ))
+        # self.get_logger().info('received occ')
         obs_locs_y_map, obs_locs_x_map = np.where(occ > self.undrivable_threshold)
-        obs_locs_x_car = obs_locs_x_map * self.grid_resolution - self.back_cells * self.grid_resolution
-        obs_locs_y_car = obs_locs_y_map * self.grid_resolution - self.width_cells / 2.0 * self.grid_resolution
-        # self.get_logger().info(str(obs_locs_y_car))
+        obs_locs_x_car = obs_locs_x_map * self.grid_resolution * window_size - (self.back_cells - crop) * self.grid_resolution
+        obs_locs_y_car = obs_locs_y_map * self.grid_resolution * window_size - (self.width_cells / 2.0 - crop) * self.grid_resolution
+        # self.get_logger().info(str(obs_locs_x_car))
         # obs_locs_x_car = np.array([10.0, 12.0])
         # obs_locs_y_car = np.array([14.0, 15.0])
         # lateral_distance_grid = 14 * np.ones((60, 60))
@@ -434,25 +411,25 @@ class Map_CA(rclpy.node.Node):
             # print(obs_locs_x_cartesian[0], obs_locs_y_cartesian[0])
         # except IndexError:
         #     pass
-        # point_cloud = PointCloud()
-        # point_cloud.header.frame_id = 'map'
-        # for ii in range(len(obs_locs_x_cartesian)):
-        #     point = Point32()
-        #     point.x = obs_locs_x_cartesian[ii]
-        #     point.y = obs_locs_y_cartesian[ii]
-        #     point.z = 0.0
-        #     point_cloud.points.append(point)
-        # # channel = ChannelFloat32()
-        # # channel.name = 'intensity'
-        # # channel.values = np.ones
-        # # point_cloud.channels.append(channel)
-        # self.goal_pub.publish(point_cloud)
+        point_cloud = PointCloud()
+        point_cloud.header.frame_id = 'map'
+        for ii in range(len(obs_locs_x_cartesian)):
+            point = Point32()
+            point.x = obs_locs_x_cartesian[ii]
+            point.y = obs_locs_y_cartesian[ii]
+            point.z = 0.0
+            point_cloud.points.append(point)
+        # channel = ChannelFloat32()
+        # channel.name = 'intensity'
+        # channel.values = np.ones
+        # point_cloud.channels.append(channel)
+        self.goal_pub.publish(point_cloud)
         boundary_dists = self.convert_obs_to_constraints(obs_locs)
         bounds_msg = MapBounds()
         data0 = boundary_dists.astype('float64').tolist()[0]
         data1 = boundary_dists.astype('float64').tolist()[1]
         data = data0 + data1
-        # self.get_logger().info(data)
+        # self.get_logger().info('sending bounds')
         bounds_msg.array.data = data
         self.bounds_array_pub.publish(bounds_msg)
         return
