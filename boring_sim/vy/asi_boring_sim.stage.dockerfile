@@ -1,5 +1,5 @@
-FROM asirobots/asi_ros2_sim:foxy
-# FROM asirobots-car_sim_ros2
+FROM asirobots/asi_ros2_sim:dashing
+# FROM asirobots-asi_msgs-ros2
 RUN pip3 install transforms3d
 # RUN apt-get update && apt-get install -y ros-$ROS2-rqt* iputils-ping
 COPY src /ros2_ws/src
@@ -10,4 +10,4 @@ RUN bash -c ". /opt/ros/$ROS2/setup.bash && \
             && colcon build --merge-install --packages-select boring_nodes"
 
 #VY CONTEXT ..
-#VY SOURCE asirobots/asi_ros2_sim:foxy
+#VY SOURCE asirobots/asi_ros2_sim:dashing

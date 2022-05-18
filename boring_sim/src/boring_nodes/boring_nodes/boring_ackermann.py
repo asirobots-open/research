@@ -8,8 +8,7 @@ from boring_nodes.ackermann import Ackermann
 from nav_msgs.msg import Odometry
 from asi_msgs.msg import AsiTBSG
 from geometry_msgs.msg import TransformStamped
-from tf2_ros import TransformBroadcaster
-import tf_transformations
+import transforms3d
 
 class BoringAckermann(Node):
     def __init__(self):
@@ -28,15 +27,15 @@ class BoringAckermann(Node):
         self.ack.state.yaw = self.get_parameter('heading').get_parameter_value().double_value*math.pi/180
         
         self.timer_period = 0.05  # seconds
-        qos_profile = QoSProfile(depth=10)
-        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
-        qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
-        qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+        pqos_profile = QoSProfile(depth=10)
+        sqos_profile = QoSProfile(depth=10)
+        sqos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        sqos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        sqos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
 
         self.simtimer = self.create_timer(self.timer_period, self.simulation)
-        self.publisher_ = self.create_publisher(Odometry, odometry_topic, qos_profile)        
-        self.subscriber_ = self.create_subscription(AsiTBSG, command_topic, self.cmdCb, qos_profile)
-        self.tfbroadcaster_ = TransformBroadcaster(self)
+        self.publisher_ = self.create_publisher(Odometry, odometry_topic, pqos_profile)
+        self.subscriber_ = self.create_subscription(AsiTBSG, command_topic, self.cmdCb, sqos_profile)
 
     def simulation(self):
         self.ack.step(self.timer_period)
@@ -46,26 +45,14 @@ class BoringAckermann(Node):
         odom.child_frame_id = "{}/base_link".format(ns if len(ns) > 1 else "")
         odom.pose.pose.position.x = self.ack.state.x
         odom.pose.pose.position.y = self.ack.state.y
-        q = tf_transformations.quaternion_from_euler(0, 0, self.ack.state.yaw)
+        q = transforms3d.euler.euler2quat(0, 0, self.ack.state.yaw, 'sxyz')
 
-        odom.pose.pose.orientation.x = q[0]
-        odom.pose.pose.orientation.y = q[1]
-        odom.pose.pose.orientation.z = q[2]
-        odom.pose.pose.orientation.w = q[3]
+        odom.pose.pose.orientation.w = q[0]
+        odom.pose.pose.orientation.x = q[1]
+        odom.pose.pose.orientation.y = q[2]
+        odom.pose.pose.orientation.z = q[3]
         odom.twist.twist.linear.x = self.ack.state.longitudinal_velocity
         self.publisher_.publish(odom)
-        
-        odom_trans = TransformStamped()
-        odom_trans.header.stamp = self.get_clock().now().to_msg()
-        odom_trans.header.frame_id = "map"
-        odom_trans.child_frame_id = "{}/base_link".format(ns if len(ns) > 1 else "")
-        odom_trans.transform.translation.x = self.ack.state.x
-        odom_trans.transform.translation.y = self.ack.state.y
-        odom_trans.transform.rotation.x = q[0]
-        odom_trans.transform.rotation.y = q[1]
-        odom_trans.transform.rotation.z = q[2]
-        odom_trans.transform.rotation.w = q[3]
-        self.tfbroadcaster_.sendTransform(odom_trans)
 
     def cmdCb(self, msg):
         self.ack.command.propulsive_force = msg.throttle_cmd * self.ack.model.mass * 1 # msg.gear_cmd = -1,0,1?

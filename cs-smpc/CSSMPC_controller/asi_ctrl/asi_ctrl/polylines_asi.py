@@ -13,10 +13,10 @@ from nav_msgs.msg import Odometry, Path, OccupancyGrid
 from geometry_msgs.msg import PoseStamped
 # from autorally_msgs.msg import wheelSpeeds
 from scipy.spatial.transform import Rotation
-from asi_msgs.msg import MapCA
+from asiext_msgs.msg import MapCA
 from asi_msgs.msg import AsiClothoidPath
 from asi_msgs.msg import AsiClothoid
-from asi_msgs.msg import MapBounds
+from asiext_msgs.msg import MapBounds
 import rospkg
 
 
@@ -69,17 +69,18 @@ class Map_CA(rclpy.node.Node):
         self.wf = 0.1
         self.wr = 0.1
 
-        qos_profile = QoSProfile(depth=10)
-        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT  # .RELIABLE
-        qos_profile.history = QoSHistoryPolicy.KEEP_LAST  # .KEEP_ALL
-        qos_profile.durability = QoSDurabilityPolicy.VOLATILE  # .TRANSIENT_LOCAL
-        self.create_subscription(AsiClothoidPath, self.plan_topic, self.path_cb, qos_profile)
-        self.path_pub = self.create_publisher(Path, "/smoothed_path", qos_profile)
-        self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, qos_profile)
-        self.mapca_pub = self.create_publisher(MapCA, 'mapCA', qos_profile)
-        self.create_subscription(OccupancyGrid, "terrain_cost", self.obstacle_callback, qos_profile)
-        self.boundary_pub = self.create_publisher(Path, "boundaries", qos_profile)
-        self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", qos_profile)
+        pqos_profile = QoSProfile(depth=10)
+        sqos_profile = QoSProfile(depth=10)
+        sqos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT  # .RELIABLE
+        sqos_profile.history = QoSHistoryPolicy.KEEP_LAST  # .KEEP_ALL
+        sqos_profile.durability = QoSDurabilityPolicy.VOLATILE  # .TRANSIENT_LOCAL
+        self.create_subscription(AsiClothoidPath, self.plan_topic, self.path_cb, sqos_profile)
+        self.path_pub = self.create_publisher(Path, "/smoothed_path", pqos_profile)
+        self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, sqos_profile)
+        self.mapca_pub = self.create_publisher(MapCA, 'mapCA', pqos_profile)
+        self.create_subscription(OccupancyGrid, "drivability_grid", self.obstacle_callback, sqos_profile)
+        self.boundary_pub = self.create_publisher(Path, "boundaries", pqos_profile)
+        self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", pqos_profile)
 
     def localize(self, M, psi):
         # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)

@@ -4,22 +4,31 @@ from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolic
 from rclpy.qos import QoSProfile
 
 from nav_msgs.msg import Odometry
-import tf_transformations
 from geometry_msgs.msg import TransformStamped
-from tf2_ros import TransformBroadcaster
+
+has_broadcaster = True
+try:
+    from tf2_ros import TransformBroadcaster
+except Exception as exc:
+    from tf2_msgs.msg import TFMessage
+    has_broadcaster = False
 
 class BoringTfPub(Node):
     def __init__(self):
         super().__init__('boring_tfpub')
         self.declare_parameter('odometry_topic', 'odom_topic')
         odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
-        qos_profile = QoSProfile(depth=1)
-        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
-        qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
-        qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+        pqos_profile = QoSProfile(depth=10)
+        sqos_profile = QoSProfile(depth=10)
+        sqos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        sqos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        sqos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
 
-        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, qos_profile)
-        self.tfbroadcaster_ = TransformBroadcaster(self)
+        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, sqos_profile)
+        if has_broadcaster:
+            self.tfbroadcaster_ = TransformBroadcaster(self)
+        else:
+            self.tfpublisher_ = self.create_publisher(msg_type=TFMessage, topic="/tf")
 
     def odometryCb(self, msg):
         ns = self.get_namespace()
@@ -31,15 +40,12 @@ class BoringTfPub(Node):
         odom_trans.transform.translation.y = msg.pose.pose.position.y
         odom_trans.transform.translation.z = msg.pose.pose.position.z
         odom_trans.transform.rotation = msg.pose.pose.orientation
-        # o_q = msg.pose.pose.orientation
-        # euler = tf_transformations.euler_from_quaternion([o_q.x, o_q.y, o_q.z, o_q.w])
-        # q = tf_transformations.quaternion_from_euler(0, 0, math.pi/2-euler[2])
-        # odom_trans.transform.rotation.x = q[0]
-        # odom_trans.transform.rotation.y = q[1]
-        # odom_trans.transform.rotation.z = q[2]
-        # odom_trans.transform.rotation.w = q[3]
-
-        self.tfbroadcaster_.sendTransform(odom_trans)
+        if has_broadcaster:
+            self.tfbroadcaster_.sendTransform(odom_trans)
+        else:
+            tf_msg = TFMessage()
+            tf_msg.transforms = [odom_trans]
+            self.tfpublisher_.publish(tf_msg)
 
 
 def main(args=None):

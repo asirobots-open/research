@@ -9,7 +9,7 @@ from nav_msgs.msg import Odometry
 from asi_msgs.msg import AsiTBSG
 from nav_msgs.msg import OccupancyGrid
 from asi_msgs.msg import AsiClothoidPath
-import tf_transformations
+import transforms3d
 
 def unwrap(dq):
   return ((dq+math.pi)%(2*math.pi))-math.pi
@@ -28,14 +28,15 @@ class BoringController(Node):
         plan_topic = self.get_parameter('plan_topic').get_parameter_value().string_value
         odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
 
-        qos_profile = QoSProfile(depth=10)
-        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
-        qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
-        qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+        pqos_profile = QoSProfile(depth=10)
+        sqos_profile = QoSProfile(depth=10)
+        sqos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        sqos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        sqos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
 
-        self.publisher_ = self.create_publisher(AsiTBSG, command_topic, qos_profile)
-        self.plan_sub = self.create_subscription(AsiClothoidPath, plan_topic, self.planCb, qos_profile)
-        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, qos_profile)
+        self.publisher_ = self.create_publisher(AsiTBSG, command_topic, pqos_profile)
+        self.plan_sub = self.create_subscription(AsiClothoidPath, plan_topic, self.planCb, sqos_profile)
+        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, sqos_profile)
 
     def planCb(self, msg):
         self.PATH = []
@@ -65,7 +66,7 @@ class BoringController(Node):
 
         o_q = msg.pose.pose.orientation
         pos = msg.pose.pose.position
-        euler = tf_transformations.euler_from_quaternion([o_q.x, o_q.y, o_q.z, o_q.w])
+        euler = transforms3d.euler.quat2euler([o_q.w, o_q.x, o_q.y, o_q.z],'sxyz')
         roll = euler[0]
         pitch = euler[1]
         heading = euler[2]

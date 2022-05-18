@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(asi_msgs)
+project(asiext_msgs)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -12,9 +12,10 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-  msg/AsiTBSG.msg
-  msg/AsiClothoidPath.msg
-  msg/AsiClothoid.msg
+  msg/MapCA.msg
+  msg/MapBounds.msg
+  msg/MotionVk.msg
+  msg/MotionVkFieldsPresent.msg
   DEPENDENCIES builtin_interfaces std_msgs
 )
 

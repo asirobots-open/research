@@ -5,7 +5,7 @@ from rclpy.qos import QoSProfile
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from nav_msgs.msg import OccupancyGrid
-import tf_transformations
+import transforms3d
 
 class BoringGrid(Node):
     def __init__(self):
@@ -14,17 +14,18 @@ class BoringGrid(Node):
         self.shapes = []
         self.empty_value = 0 # ? chr(255)
         self.occupied_value = 100 # ? chr(0)
-        self.declare_parameter('terrain_topic', 'terrain_cost')
+        self.declare_parameter('terrain_topic', 'drivability_grid')
         self.declare_parameter('odometry_topic', 'odom_topic')
         terrain_topic = self.get_parameter('terrain_topic').get_parameter_value().string_value
         odometry_topic = self.get_parameter('odometry_topic').get_parameter_value().string_value
 
-        qos_profile = QoSProfile(depth=1)
-        qos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
-        qos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
-        qos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
-        self.publisher_ = self.create_publisher(OccupancyGrid, terrain_topic, qos_profile)
-        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, qos_profile)
+        pqos_profile = QoSProfile(depth=10)
+        sqos_profile = QoSProfile(depth=10)
+        sqos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT      # .RELIABLE
+        sqos_profile.history = QoSHistoryPolicy.KEEP_LAST                # .KEEP_ALL
+        sqos_profile.durability = QoSDurabilityPolicy.VOLATILE           # .TRANSIENT_LOCAL
+        self.publisher_ = self.create_publisher(OccupancyGrid, terrain_topic, pqos_profile)
+        self.odom_sub = self.create_subscription(Odometry, odometry_topic, self.odometryCb, sqos_profile)
 
         self.declare_parameter('calibration_file', '')
         self.read_calibration( self.get_parameter('calibration_file').get_parameter_value().string_value )
@@ -54,12 +55,17 @@ class BoringGrid(Node):
         self.occ_grid.info.height = width_cells
         self.grid_origin_x = -self.occ_grid.info.resolution*back_cells
         self.grid_origin_y = -self.occ_grid.info.resolution*width_cells/2
-        self.update_position(0,0)
+        self.update_position(0,0,0)
         self.occ_grid.data =  [self.empty_value] * self.occ_grid.info.width * self.occ_grid.info.height
 
-    def update_position(self,x,y):
+    def update_position(self,x,y,heading):
         self.occ_grid.info.origin.position.x = x + self.grid_origin_x
         self.occ_grid.info.origin.position.y = y + self.grid_origin_y
+        q = transforms3d.euler.euler2quat(0, 0, heading, 'sxyz')
+        self.occ_grid.info.origin.orientation.w = q[0]
+        self.occ_grid.info.origin.orientation.x = q[1]
+        self.occ_grid.info.origin.orientation.y = q[2]
+        self.occ_grid.info.origin.orientation.z = q[3]
 
     def read_calibration(self,calibration_file):
         # Create a default path,
@@ -102,12 +108,12 @@ class BoringGrid(Node):
 
     def odometryCb(self, msg):
         o_q = msg.pose.pose.orientation
-        euler = tf_transformations.euler_from_quaternion([o_q.x, o_q.y, o_q.z, o_q.w])
+        euler = transforms3d.euler.quat2euler([o_q.w, o_q.x, o_q.y, o_q.z],'sxyz')
         self.xpos = msg.pose.pose.position.x
         self.ypos = msg.pose.pose.position.y
         if self.inertial_frame:
-            self.update_position(self.xpos, self.ypos)
             self.heading = 0
+            self.update_position(self.xpos, self.ypos, self.heading)
         else:
             self.heading = euler[2]
         self.new_odometry = True

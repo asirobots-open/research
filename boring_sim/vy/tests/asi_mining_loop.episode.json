@@ -1,7 +1,7 @@
 {
   "anchors": {
     "CALIBRATION": "object:asi_mining_loop",
-    "ROS2": "foxy"
+    "ROS2": "dashing"
   },
   "compose": "compose:asi_boring_sim",
   "object_mods": {},

@@ -1,7 +1,7 @@
 x-vy:
   anchors:
     DR: argument:Debug
-    ROS2: argument:foxy
+    ROS2: argument:dashing
     CALIBRATION: definition:asi_boring_sim
     BORINGNODES: stage:asi_boring_sim
     RVIZFILES: vydir:boring_sim

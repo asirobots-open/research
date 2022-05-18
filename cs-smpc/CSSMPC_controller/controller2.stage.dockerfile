@@ -6,8 +6,8 @@
 #VY CONTEXT .
 
 # START FROM THE asi_boring_sim IMAGE
-# FROM asi_boring_sim
-FROM asirobots/asi_ros2_sim:foxy
+# FROM asirobots-asi_msgs-ros2
+FROM asirobots/asi_ros2_sim:dashing
 
 # INSTALL Dependencies
 # RUN wget https://github.com/deadsnakes/python3.6/archive/refs/tags/debian/3.6.13-1+xenial1.tar.gz
@@ -25,7 +25,7 @@ RUN pip3 install numpy --user
 RUN pip3 install scipy --user
 RUN pip3 install Mosek --user
 RUN pip3 install transforms3d
-RUN apt-get install -y sqlite3
+RUN apt-get install -y sqlite3 libjpeg8-dev zlib1g-dev
 RUN pip3 install matplotlib --user
 RUN apt-get install -y python3-tk
 RUN apt-get install -y nano
@@ -43,7 +43,7 @@ RUN ls src/
 RUN lsb_release -a
 
 # RUN cp -r asi_msgs/ src/
-RUN /bin/bash -c '. /opt/ros/$ROS2/setup.bash; colcon build --packages-select asi_msgs asi_ctrl --merge-install'
+RUN /bin/bash -c '. /opt/ros/$ROS2/setup.bash; colcon build --packages-select asiext_msgs asi_ctrl --merge-install'
 RUN mkdir /root/mosek
 RUN cp src/mosek.lic /root/mosek
 
@@ -57,4 +57,4 @@ RUN cp src/mosek.lic /root/mosek
 # PUT THE RUN COMMAND HERE OR IN THE COMPOSE FILE
 CMD bash -c ". until rostopic list ; do sleep 1; done && sleep 3 && python cs_controller_asi_convex.py"
 
-#VY SOURCE asirobots/asi_ros2_sim:foxy
+#VY SOURCE asirobots/asi_ros2_sim:dashing
