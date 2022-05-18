@@ -82,7 +82,7 @@ class Map_CA(rclpy.node.Node):
         self.create_subscription(OccupancyGrid, "drivability_grid", self.obstacle_callback, sqos_profile)
         self.boundary_pub = self.create_publisher(Path, "boundaries", pqos_profile)
         self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", pqos_profile)
-	self.goal_pub = self.create_publisher(PointCloud, "goal", qos_profile)
+        self.goal_pub = self.create_publisher(PointCloud, "goal", pqos_profile)
 
     def localize(self, M, psi, use_heuristic=False):
         angle_dists = np.abs(psi - np.arctan2(self.dif_vecs[1, :], self.dif_vecs[0, :]))
