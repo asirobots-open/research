@@ -78,54 +78,21 @@ class Map_CA(rclpy.node.Node):
         self.path_pub = self.create_publisher(Path, "/smoothed_path", qos_profile)
         self.create_subscription(Odometry, self.odometry_topic, self.odom_cb, qos_profile)
         self.mapca_pub = self.create_publisher(MapCA, 'mapCA', qos_profile)
-        self.create_subscription(OccupancyGrid, "terrain_cost", self.obstacle_callback, qos_profile)
-        self.boundary_pub = self.create_publisher(Path, "boundaries", qos_profile)
+        self.create_subscription(OccupancyGrid, "drivability_grid", self.obstacle_callback, qos_profile)
+        self.boundary_pub = self.create_publisher(Path, "boundaries2", qos_profile)
         self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", qos_profile)
+        self.goal_pub = self.create_publisher(PointCloud, "goal", qos_profile)
 
-    def localize(self, M, psi):
-        # dists = np.linalg.norm(np.subtract(M.reshape((-1,1)), self.p), axis=0)
-        # mini = np.argmin(dists)
-        # p0 = self.p[:, mini]
-        # p1 = p0 + self.p_length[0, mini] * np.cos(self.p_theta[0, mini]) + self.p_length[0, mini] * np.sin(self.p_theta[0 ,mini])
-        # # plt.plot(M[0], M[1], 'x')
-        # # plt.plot(p0[0], p0[1], 'o')
-        # # plt.plot(p1[0], p1[1], 'o')
-        # # ortho = -1/(self.slopes[mini] + 1e-8)
-        # # a = M[1] - ortho * M[0]
-        # # a_0 = p0[1] - ortho*p0[0]
-        # # a_1 = p1[1] - ortho*p1[0]
-        # printi=0
-        # if 1:#a_0 < a < a_1 or a_1 < a < a_0:
-        #     norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(np.cross(p1 - p0, M - p0)) / np.linalg.norm(p1 - p0)
-        #     s_dist = np.linalg.norm(np.dot(M-p0, p1-p0))
-        # else:
-        #     printi=1
-        #     norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(M - p0)
-        #     s_dist = 0
-        # # if norm_dist > 0.5:
-        # #     print('here')
-        # # s_dist += self.s[mini]
-        # # head_dist = psi - np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini])
-        # head_dist = psi - self.p_theta[0, mini]
-        # if head_dist > np.pi:
-        #     # print(psi, np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini]))
-        #     head_dist -= 2*np.pi
-        #     print(norm_dist, s_dist, head_dist * 180 / np.pi)
-        # elif head_dist < -np.pi:
-        #     head_dist += 2*np.pi
-        #     print(norm_dist, s_dist, head_dist * 180 / np.pi)
-        # # if printi:
-        # #     print(norm_dist, s_dist, head_dist*180/np.pi)
-        # #     printi=0
-        # # plt.show()
-        # return head_dist, norm_dist, s_dist
+    def localize(self, M, psi, use_heuristic=False):
+        angle_dists = np.abs(psi - np.arctan2(self.dif_vecs[1, :], self.dif_vecs[0, :]))
+        # good_angles = np.where(angle_dists < np.pi/3.0)[0]
+        s_dists = np.abs(self.mapca.s - self.s)
+        s_dists[s_dists > 300.0] = 0
+        # good_s = np.where(s_dists < 50.0)
         dists = np.linalg.norm(np.subtract(M.reshape((-1, 1)), self.midpoints), axis=0)
-        mini = np.argmin(dists)
+        mini = np.argmin(dists + s_dists/50.0)
         p0 = self.p[:, mini]
         p1 = self.p[:, mini + 1]
-        # plt.plot(M[0], M[1], 'x')
-        # plt.plot(p0[0], p0[1], 'o')
-        # plt.plot(p1[0], p1[1], 'o')
         ortho = -1 / self.slopes[mini]
         a = M[1] - ortho * M[0]
         a_0 = p0[1] - ortho * p0[0]
@@ -139,8 +106,6 @@ class Map_CA(rclpy.node.Node):
             printi = 1
             norm_dist = np.sign(np.cross(p1 - p0, M - p0)) * np.linalg.norm(M - p0)
             s_dist = 0
-        # if norm_dist > 0.5:
-        #     print('here')
         s_dist += self.s[mini]
         head_dist = psi - np.arctan2(self.dif_vecs[1, mini], self.dif_vecs[0, mini])
         if head_dist > np.pi:
@@ -153,7 +118,6 @@ class Map_CA(rclpy.node.Node):
         # if printi:
         #     print(norm_dist, s_dist, head_dist*180/np.pi)
         #     printi=0
-        # plt.show()
         speed = self.speeds[mini]
         return head_dist, norm_dist, s_dist, speed
 
