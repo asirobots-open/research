@@ -154,7 +154,7 @@ class CS_SMPC(rclpy.node.Node):
         self.t2 = time.time()
         self.bounds_array = 100.0 * np.ones((2, int(self.bound_length / self.bound_stride)))
 
-        self.create_timer(1.0 / 10.0, self.main_update)
+        self.create_timer(1.0 / 20.0, self.main_update)
         pqos_profile = QoSProfile(depth=10)
         sqos_profile = QoSProfile(depth=10)
         sqos_profile.reliability = QoSReliabilityPolicy.BEST_EFFORT  # .RELIABLE

@@ -1,48 +1,49 @@
-   /**:
-     ros__parameters:
-       max_speed: 20.0
-       terminal_speed: -1.0
-       horizon_length: 40
-       time_step: 0.1
-       steer_min: -0.785
-       steer_max: 0.785
-       throttle_min: -0.2
-       throttle_max: 0.4
-       delta_steer_min: -0.05
-       delta_steer_max: 0.05
-       delta_throttle_min: -0.2
-       delta_throttle_max: 0.05
-       steering_delay: 4
-       throttle_delay: 12
-       Q_speed: 10.0
-       Q_heading: 300.0
-       Q_lateral: 30.0
-       QN_speed: 1000.0
+/**:
+    ros__parameters:
+      max_speed: 4.0
+      terminal_speed: -1.0
+      horizon_length: 20
+      time_step: 0.2
+      steer_min: -0.785
+      steer_max: 0.785
+      throttle_min: -0.2
+      throttle_max: 0.1
+      delta_steer_min: -0.05
+      delta_steer_max: 0.05
+      delta_throttle_min: -0.2
+      delta_throttle_max: 0.05
+      steering_delay: 2
+      throttle_delay: 0
+      Q_speed: 10.0
+      Q_heading: 300.0
+      Q_lateral: 30.0
+      QN_speed: 1000.0
 #       QN_heading: Q_heading * horizon_length
 #       QN_lateral: max(Q_heading, Q_lateral) * horizon_length
-       R_steer: 100.0
-       R_throttle: 2.0
+      R_steer: 100.0
+      R_throttle: 2.0
 
-       width_cells: 401
-       front_cells: 200
-       back_cells: 201
-       undrivable_threshold: 50.0
-       inertial_frame: true
+      width_cells: 61
+      front_cells: 30
+      back_cells: 31
+      grid_resolution: 0.5
+      undrivable_threshold: 10.0
+      inertial_frame: true
 
-       bound_ceiling: 10.0
-       bound_length: 20.0
-       bound_stride: 2.0
-       obs_buffer: 1.5
-       min_track_width: 6.0
-       obs_method: 2
+      bound_ceiling: 10.0
+      bound_length: 20.0
+      bound_stride: 2.0
+      obs_buffer: 2.0
+      min_track_width: 5.0
+      obs_method: 2
 
-       odometry_topic: odometry_teleop
-       command_topic: tbsg_cmd
-       plan_topic: planned_path
-       viz_topic: vizplan
+      odometry_topic: odometry_teleop
+      command_topic: tbsg_cmd
+      plan_topic: planned_path
+      viz_topic: vizplan
 
-       steering_gain: -1.2
-       steering_offset: 0.006
-       velocity_target_offset: 0.4
-       velocity_target_factor: 10.0
-       acceleration_factor: 0.333
+      steering_gain: -1.2
+      steering_offset: 0.006
+      velocity_target_offset: 0.4
+      velocity_target_factor: 10.0
+      acceleration_factor: 0.333

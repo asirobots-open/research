@@ -82,7 +82,7 @@ class Map_CA(rclpy.node.Node):
         self.create_subscription(OccupancyGrid, "drivability_grid", self.obstacle_callback, sqos_profile)
         self.boundary_pub = self.create_publisher(Path, "boundaries", pqos_profile)
         self.bounds_array_pub = self.create_publisher(MapBounds, "bounds_array", pqos_profile)
-	self.goal_pub = self.create_publisher(PointCloud, "goal", qos_profile)
+        self.goal_pub = self.create_publisher(PointCloud, "goal", pqos_profile)
 
     def localize(self, M, psi, use_heuristic=False):
         angle_dists = np.abs(psi - np.arctan2(self.dif_vecs[1, :], self.dif_vecs[0, :]))
@@ -287,11 +287,17 @@ class Map_CA(rclpy.node.Node):
                     right_bound = -ceiling
                 if abs(left_bound) < half_min_track_width or abs(right_bound) < half_min_track_width:
                     if veer == 0:
-                        left_bound = np.max(left_obs[0, :])
+                        try:
+                            left_bound = np.max(left_obs[0, :])
+                        except:
+                            left_bound = ceiling
                         right_bound = obstacle_buffer # + np.max(left_obs[0, left_obs[0, :] < half_min_track_width])
                     else:
                         left_bound = - obstacle_buffer # + np.min(right_obs[0, right_obs[0, :] > -half_min_track_width])
-                        right_bound = np.min(right_obs[0, :])
+                        try:
+                            right_bound = np.min(right_obs[0, :])
+                        except:
+                            right_bound = -ceiling
                 boundary_dists[:, ii:ii+1] = np.vstack((left_bound, -1 * right_bound))
         elif self.obs_method == 1:
             path_ss = np.arange(self.mapca.s, self.mapca.s + bound_length, bound_stride)[:boundary_dists.shape[1]]
@@ -375,8 +381,8 @@ class Map_CA(rclpy.node.Node):
     def obstacle_callback(self, occupancy_msg=None):
         np.set_printoptions(threshold=sys.maxsize)
         occ_big = np.asarray(occupancy_msg.data).reshape((self.width_cells, self.front_cells + self.back_cells))
-        crop = 100
-        occ = occ_big[crop:-crop, crop:-crop]
+        crop = 1
+        occ = occ_big #[crop:-crop, crop:-crop]
         window_size = 1
         # window_view = view_as_windows(occ_big, (window_size, window_size), step=(window_size, window_size))
         # occ = np.mean(window_view, axis=(2, 3))
@@ -411,19 +417,19 @@ class Map_CA(rclpy.node.Node):
             # print(obs_locs_x_cartesian[0], obs_locs_y_cartesian[0])
         # except IndexError:
         #     pass
-        point_cloud = PointCloud()
-        point_cloud.header.frame_id = 'map'
-        for ii in range(len(obs_locs_x_cartesian)):
-            point = Point32()
-            point.x = obs_locs_x_cartesian[ii]
-            point.y = obs_locs_y_cartesian[ii]
-            point.z = 0.0
-            point_cloud.points.append(point)
+        #point_cloud = PointCloud()
+        #point_cloud.header.frame_id = 'map'
+        #for ii in range(len(obs_locs_x_cartesian)):
+        #    point = Point32()
+        #    point.x = obs_locs_x_cartesian[ii]
+        #    point.y = obs_locs_y_cartesian[ii]
+        #    point.z = 0.0
+        #    point_cloud.points.append(point)
         # channel = ChannelFloat32()
         # channel.name = 'intensity'
         # channel.values = np.ones
         # point_cloud.channels.append(channel)
-        self.goal_pub.publish(point_cloud)
+        #self.goal_pub.publish(point_cloud)
         boundary_dists = self.convert_obs_to_constraints(obs_locs)
         bounds_msg = MapBounds()
         data0 = boundary_dists.astype('float64').tolist()[0]
