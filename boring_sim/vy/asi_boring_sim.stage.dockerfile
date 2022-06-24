@@ -1,5 +1,5 @@
-FROM asirobots/asi_ros2_sim:dashing
-# FROM asirobots-asi_msgs-ros2
+# FROM asirobots/asi_ros2_sim:dashing
+FROM asirobots-asi_msgs-ros2
 RUN pip3 install transforms3d
 # RUN apt-get update && apt-get install -y ros-$ROS2-rqt* iputils-ping
 COPY src /ros2_ws/src

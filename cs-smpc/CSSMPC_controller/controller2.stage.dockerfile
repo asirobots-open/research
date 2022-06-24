@@ -6,8 +6,8 @@
 #VY CONTEXT .
 
 # START FROM THE asi_boring_sim IMAGE
-# FROM asirobots-asi_msgs-ros2
-FROM asirobots/asi_ros2_sim:dashing
+FROM asirobots-asi_msgs-ros2
+# FROM asirobots/asi_ros2_sim:dashing
 
 # INSTALL Dependencies
 # RUN wget https://github.com/deadsnakes/python3.6/archive/refs/tags/debian/3.6.13-1+xenial1.tar.gz
