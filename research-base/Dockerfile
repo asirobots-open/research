@@ -19,4 +19,4 @@ RUN tar xf /cmake-3.24.0.tar.gz
 RUN cd /cmake-3.24.0 && ./bootstrap --prefix=/opt/cmake && make && make install
 RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
-RUN apt-get update && apt install -y valgrind gdb
+RUN apt-get update && apt install -y valgrind gdb vim
